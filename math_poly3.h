@@ -1,6 +1,6 @@
 #pragma once
 
-#include "simd_granodi.h"
+#include "../simd_granodi/simd_granodi.h"
 
 namespace jon_dsp {
 

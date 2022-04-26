@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cmath>
-#include "../../DSP_SHARED/simd_granodi_math.h"
+#include "../simd_granodi_math/simd_granodi_math.h"
 
 namespace jon_dsp {
 
