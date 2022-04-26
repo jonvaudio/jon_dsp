@@ -1,0 +1,2 @@
+g++ -o test_opt test_param.cpp -Wall -Wextra -std=c++11 -O3 -lm -D NDEBUG
+g++ -o test_dbg test_param.cpp -Wall -Wextra -std=c++11 -lm
