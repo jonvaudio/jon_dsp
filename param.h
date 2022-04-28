@@ -310,11 +310,13 @@ public:
     int32_t sample_rate() const { assert_ready_(); return sample_rate_; }
 
     void init(const int32_t sample_rate) {
-        assert(8000 <= sample_rate && sample_rate <= 384000);
+        assert(STANDARD_SAMPLE_RATES_MIN <= sample_rate &&
+            sample_rate <= STANDARD_SAMPLE_RATES_MAX);
         // For non-debug builds, we also want to constrain the sample rate
         // to avoid buffer overflows etc
-        const int32_t safe_sample_rate = std::min(std::max(8000, sample_rate),
-            384000);
+        const int32_t safe_sample_rate =
+            std::min(std::max(STANDARD_SAMPLE_RATES_MIN, sample_rate),
+                STANDARD_SAMPLE_RATES_MAX);
         sample_rate_ = safe_sample_rate;
         timer_size_ = scale_size_by_sample_rate(
             safe_sample_rate, BlockSizeAt4448, 1);
