@@ -247,6 +247,25 @@ inline constexpr T max_constexpr(const T& a, const T& b) {
     return a > b ? a : b;
 }
 
+
+static constexpr int32_t STANDARD_SAMPLE_RATES[] = {
+      8000,
+     11025,
+     16000,
+     22050,
+     44100,
+     48000,
+     88200,
+     96000,
+    176400,
+    192000,
+    352800,
+    384000
+};
+
+static constexpr int32_t STANDARD_SAMPLE_RATES_MIN = STANDARD_SAMPLE_RATES[0],
+    STANDARD_SAMPLE_RATES_MAX = 384000;
+
 // Scale some kind of size by common sample rates. Values outside the range of
 // common sample rates will be constrained.
 inline constexpr int32_t scale_size_by_sample_rate(const int32_t sample_rate,
