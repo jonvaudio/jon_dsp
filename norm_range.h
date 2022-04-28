@@ -145,7 +145,7 @@ struct RangeSkewed {
         assert(0.0 <= skewed_val && skewed_val <= 1.0);
         // less code method that gives almost-same result as juce with some
         // rounding error
-        // return std::pow(skewed_val, 1.0 / skew_exp_); 
+        // return std::pow(skewed_val, 1.0 / skew_exp_);
         // juce method that should give identical result
         return skewed_val > 0.0 ?
             std::exp(std::log(skewed_val) / skew_exp_) : skewed_val;
@@ -449,15 +449,18 @@ inline juce::NormalisableRange<FloatType> get_juce_norm_range(
     return juce::NormalisableRange<FloatType>(range.lowerb(), range.upperb(),
     [range](FloatType start, FloatType end, FloatType norm_val) -> FloatType
     {
+        (void) start; (void) end;
         return static_cast<FloatType>(
             range.unnormalise(static_cast<double>(norm_val)));
     },
     [range](FloatType start, FloatType end, FloatType unnorm_val) -> FloatType {
+        (void) start; (void) end;
         return static_cast<FloatType>(
             range.normalise(static_cast<double>(unnorm_val)));
     },
     [snapper](FloatType start, FloatType end, FloatType unnorm_val)
         -> FloatType {
+         (void) start; (void) end;
          return static_cast<FloatType>(
              snapper.snap_unnorm(static_cast<double>(unnorm_val))); });
 }
