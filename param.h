@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cstring> // memcpy
@@ -291,9 +292,13 @@ public:
 
     void init(const int32_t sample_rate) {
         assert(8000 <= sample_rate && sample_rate <= 384000);
-        sample_rate_ = sample_rate;
+        // For non-debug builds, we also want to constrain the sample rate
+        // to avoid buffer overflows etc
+        const int32_t safe_sample_rate = std::min(std::max(8000, sample_rate),
+            384000);
+        sample_rate_ = safe_sample_rate;
         timer_size_ = scale_size_by_sample_rate(
-            sample_rate, BlockSizeAt4448, 1);
+            safe_sample_rate, BlockSizeAt4448, 1);
         snap_smooth_params_ = true;
 
         ScopedDenormalsDisable sdd;
