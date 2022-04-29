@@ -80,10 +80,11 @@ public:
     }
 };
 
-template<typename VecType>
+template<typename VecType, int32_t SMOOTH_TIME_MS = 1>
 class SmoothParamValidated {
     VecType current_, delta_, target_;
-    static constexpr double SMOOTH_TIME_MS = 1.0;
+    static constexpr typename VecType::elem_t smooth_time_ms_ =
+        typename VecType::elem_t {SMOOTH_TIME_MS};
     #ifdef JON_DSP_VALIDATE_PARAMS
     bool valid_current_, valid_target_, can_advance_;
     #endif
@@ -106,7 +107,7 @@ public:
         target_ = new_target;
         using elem_t = typename VecType::elem_t;
         delta_ = (target_ - current_) /
-            (elem_t(SMOOTH_TIME_MS) * elem_t(0.001) * elem_t(sample_rate));
+            (smooth_time_ms_ * elem_t(0.001) * elem_t(sample_rate));
     }
 
     void calc_next_current_delta_(VecType& next_current,
