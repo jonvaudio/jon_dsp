@@ -5,15 +5,15 @@
 #define JON_DSP_DENORMAL_ERROR "Cannot modify floating point environment"
 
 #ifdef __clang__
-    // We need clang 12 or newer
-    #if __clang_major__ >= 12
+    // We need clang 12 or newer on sse to use this pragma
+    #if __clang_major__ >= 12 && SIMD_GRANODI_ARCH_SSE
         #pragma STDC FENV_ACCESS ON
     #else
         #define JON_DSP_DENORMAL_NOINLINE __attribute__((noinline, optnone))
     #endif
 #elif defined __GNUC__
-// GCC treats our intrinsics / asm as a signal fence, so in this case we are
-// probably ok, but we force this to be sure
+// GCC treats our intrinsics / asm as a signal fence, so this is probably
+// not needed. But using it in case of future changes
 #define JON_DSP_DENORMAL_NOINLINE __attribute__((noinline, optimize("-O0")))
 #elif defined _MSC_VER
 #pragma fenv_access (on)
@@ -68,7 +68,7 @@ class ScopedDenormalDisable {
     static fp_status disable_denormals() {
         fp_status previous_fs = get_fp_status();
         #if defined SIMD_GRANODI_ARCH_ARM64 || SIMD_GRANODI_ARCH_ARM32
-        set_fp_status(previous_fp_status | 0x1000000);
+        set_fp_status(previous_fs | 0x1000000);
         #elif defined SIMD_GRANODI_ARCH_SSE
         // flush_to_zero:
         //     "sets denormal results from floating-point calculations to zero"
