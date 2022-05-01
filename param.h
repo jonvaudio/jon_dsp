@@ -323,7 +323,7 @@ public:
             safe_sample_rate, BlockSizeAt4448, 1);
         snap_smooth_params_ = true;
 
-        ScopedDenormalsDisable sdd;
+        ScopedDenormalDisable sdd;
         effect_->init_();
     }
 
@@ -335,7 +335,7 @@ public:
         const int32_t block_size)
     {
         assert_ready_();
-        ScopedDenormalsDisable sdd;
+        ScopedDenormalDisable sdd;
         for (int32_t j = 0; j < block_size; j += timer_size_) {
             effect_->read_atomic_params_();
             if (snap_smooth_params_) {
