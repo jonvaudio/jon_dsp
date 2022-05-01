@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#ifdef JON_DSP_EASY_RECT_JUCE
+#ifdef JON_DSP_JUCE
 #include <JuceHeader.h>
 #endif
 
@@ -10,7 +10,7 @@ namespace jon_dsp {
 
 // Immutable constexpr 2D rectangle implementation designed to make grid-based
 // layouts as easy as possible. Can export a juce rectangle if
-// JON_DSP_EASY_RECT_JUCE is defined.
+// JON_DSP_JUCE is defined.
 // (0.0, 0.0) is top left corner
 template <typename NumType>
 struct EasyRect {
@@ -44,7 +44,7 @@ struct EasyRect {
     constexpr NumType w() const { return w_; }
     constexpr NumType h() const { return h_; }
 
-    #ifdef JON_DSP_EASY_RECT_JUCE
+    #ifdef JON_DSP_JUCE
     template <typename DestNumType>
     juce::Rectangle<DestNumType> to_juce() const {
         return juce::Rectangle<DestNumType>(static_cast<DestNumType>(x_),

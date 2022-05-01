@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cmath>
 
-#ifdef JON_DSP_NORM_RANGE_JUCE
+#ifdef JON_DSP_JUCE
 #include <JuceHeader.h>
 #endif
 
@@ -433,7 +433,7 @@ struct SnapperIntervals {
     FloatType upperb() const { return upperb_; }
 };
 
-#ifdef JON_DSP_NORM_RANGE_JUCE
+#ifdef JON_DSP_JUCE
 
 // OUTPUT TO JUCE. The resulting range can be used in
 // juce::AudioParameterFloat (pass float type via constructor)

@@ -1,0 +1,5 @@
+./test_gcc_opt
+./test_gcc_dbg
+./test_clang_opt
+./test_clang_dbg
+

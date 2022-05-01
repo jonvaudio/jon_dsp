@@ -1,0 +1,4 @@
+g++ -o test_gcc_opt test_denormal_disable.cpp -Wall -Wextra -std=c++11 -O3 -lm -D NDEBUG
+g++ -o test_gcc_dbg test_denormal_disable.cpp -Wall -Wextra -std=c++11 -lm
+clang++ -o test_clang_opt test_denormal_disable.cpp -Wall -Wextra -std=c++11 -O3 -D NDEBUG
+clang++ -o test_clang_dbg test_denormal_disable.cpp -Wall -Wextra -std=c++11 -lm
