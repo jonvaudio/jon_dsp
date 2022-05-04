@@ -19,25 +19,12 @@ struct EasyRect {
     constexpr EasyRect() : x_(0), y_(0), w_(0), h_(0) {}
     constexpr EasyRect(const NumType x, const NumType y, const NumType w,
         const NumType h)
-        : x_(x), y_(y), w_(w), h_(h)
-    {
-        check_invariants();
-    }
+        : x_(x), y_(y), w_(w), h_(h) {}
+    #ifdef JON_DSP_JUCE
     constexpr EasyRect(const juce::Rectangle<NumType>& jrect)
         : x_(jrect.getX()), y_(jrect.getY()), w_(jrect.getWidth()),
-        h_(jrect.getHeight())
-    {
-        check_invariants();
-    }
-    constexpr EasyRect(const EasyRect<NumType>& rect) :
-        x_(rect.x()), y_(rect.y()), w_(rect.w()), h_(rect.h())
-    {
-        check_invariants();
-    }
-
-    constexpr void check_invariants() const {
-        // There are no invatiants.
-    }
+        h_(jrect.getHeight()) {}
+    #endif
 
     constexpr NumType x() const { return x_; }
     constexpr NumType y() const { return y_; }

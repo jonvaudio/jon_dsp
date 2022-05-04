@@ -46,8 +46,7 @@ struct Poly3 {
 
     template <typename FloatType>
     FloatType eval(const FloatType& x) const {
-        //return ((a_*x + b_)*x + c_)*x + d_;
-        return x.mul_add(a_, b).mul_add(x, c_).mul_add(x, d_);
+        return x.mul_add(a_, b_).mul_add(x, c_).mul_add(x, d_);
     }
 };
 
@@ -98,9 +97,9 @@ struct Poly2 {
 
         result.b_ = (y2 - y1)*x3_s + (y1 - y2)*x2_s + y2 - y3;
         result.b_ /= (x3_s - x2_s)*(x2 - x1) + x2 - x3;
-        result.a_ = y3 - y2 - b_*(x3 - x2);
+        result.a_ = y3 - y2 - result.b_*(x3 - x2);
         result.a_ /= x3_s - x2_s;
-        result.c_ = y2 - a_*x2_s - b_*x2;
+        result.c_ = y2 - result.a_*x2_s - result.b_*x2;
 
         return result;
     }
