@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstring> // memcpy
+#include <initializer_list>
 #include "../simd_granodi/simd_granodi.h"
 
 #ifndef NDEBUG
