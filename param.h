@@ -6,6 +6,7 @@
 #include <cstring> // memcpy
 #include <initializer_list>
 #include "../simd_granodi/simd_granodi.h"
+#include "denormal_disable.h"
 
 #ifndef NDEBUG
 #define JON_DSP_VALIDATE_PARAMS
@@ -32,7 +33,9 @@ public:
         if (init_vals.size() == 1) set_all(*(init_vals.begin()));
         else if (init_vals.size() == SIZE) {
             std::size_t i = 0;
-            for (const T& x : init_vals) data_[i++] = x;
+            for (const T& x : init_vals) {
+                if (i < SIZE) data_[i++] = x;
+            }
         } else assert(false); // "Initialization list is the wrong size"
     }
 
