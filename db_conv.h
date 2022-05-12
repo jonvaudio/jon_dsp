@@ -38,12 +38,12 @@ template <typename VecType>
 inline VecType volt_to_db_cm(const VecType& x,
     const double min_db = VOLT_TO_DB_SMALLEST_DB)
 {
-    return VecType::max(v2db_loge_scale_post * logf_cm(x.abs()), min_db);
+    return VecType::max(v2db_loge_scale_post * log_cm(x.abs()), min_db);
 }
 
 template <typename VecType>
 inline VecType db_to_volt_cm(const VecType& x) {
-    return expf_cm(x * db2v_expe_scale_pre);
+    return exp_cm(x * db2v_expe_scale_pre);
 }
 
 //
