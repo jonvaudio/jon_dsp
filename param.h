@@ -289,6 +289,66 @@ inline constexpr int32_t max_size_needed(const int32_t size_at_4448) {
     return scale_size_by_sample_rate(384000, size_at_4448, 1);
 }
 
+namespace param_impl {
+
+// Block transformer for two arrays of IOFloatType (stereo), and an
+// effect that processes VecType
+template <typename IOFloatType, typename VecType>
+struct BlockTransformer_IO {
+    IOFloatType *const left_io_, *const right_io_;
+    BlockTransformer_IO(IOFloatType* const left_io,
+        IOFloatType* const right_io)
+        : left_io_ {left_io}, right_io_ {right_io} {}
+
+    bool is_nullptr() const {
+        return !(left_io_ && right_io_);
+    }
+
+    template <typename EffectType>
+    void iterate_(const int32_t i, EffectType& effect) const {
+        using elem_t = typename VecType::elem_t;
+        VecType sample = VecType::set_duo(static_cast<elem_t>(right_io_[i]),
+            static_cast<elem_t>(left_io_[i]));
+        sample = effect.iterate_(sample);
+        left_io_[i] = static_cast<IOFloatType>(sample.template get<0>());
+        right_io_[i] = static_cast<IOFloatType>(sample.template get<1>());
+    }
+};
+
+// BlockTransformer_IO with a sidechain input. It's fine for the sidechain to
+// be nullptr
+template <typename IOFloatType, typename VecType>
+struct BlockTransformer_IO_SC {
+    IOFloatType *const left_io_, *const right_io_;
+    const IOFloatType *const left_sc_, *const right_sc_;
+    BlockTransformer_IO_SC(IOFloatType* const left_io,
+        IOFloatType* const right_io,
+        const IOFloatType *const left_sc,
+        const IOFloatType *const right_sc)
+        : left_io_ {left_io}, right_io_ {right_io},
+        left_sc_ {left_sc == nullptr ? left_io : left_sc},
+        right_sc_ {right_sc == nullptr ? right_io : right_sc} {}
+
+    bool is_nullptr() const {
+        return !(left_io_ && right_io_);
+    }
+
+    template <typename EffectType>
+    void iterate_(const int32_t i, EffectType& effect) const {
+        using elem_t = typename VecType::elem_t;
+        VecType sample = VecType::set_duo(static_cast<elem_t>(right_io_[i]),
+            static_cast<elem_t>(left_io_[i]));
+        const VecType sidechain = VecType::set_duo(
+            static_cast<elem_t>(right_sc_[i]),
+            static_cast<elem_t>(left_sc_[i]));
+        sample = effect.iterate_(sample, sidechain);
+        left_io_[i] = static_cast<IOFloatType>(sample.template get<0>());
+        right_io_[i] = static_cast<IOFloatType>(sample.template get<1>());
+    }
+};
+
+} // namespace param_impl
+
 // Todo: use std::conditional and a type function to make this object more
 // generic (accept PD or PS, and with / without a SC)
 // If you have some top level effect, then do:
@@ -298,13 +358,13 @@ template <typename TopLevelEffectType, int32_t BlockSizeAt4448 = 256>
 class TopLevelEffectManager {
     int32_t sample_rate_, timer_size_;
     bool snap_smooth_params_;
-    TopLevelEffectType *effect_;
+    TopLevelEffectType& effect_;
 
     void assert_ready_() const { assert(initialised()); }
 public:
     TopLevelEffectManager() : sample_rate_{0}, timer_size_{0},
         snap_smooth_params_{true},
-        effect_{static_cast<TopLevelEffectType*>(this)} {}
+        effect_{*static_cast<TopLevelEffectType*>(this)} {}
 
     bool initialised() const { return sample_rate_ != 0; }
     bool atomic_params_have_been_read() const {
@@ -328,10 +388,55 @@ public:
         snap_smooth_params_ = true;
 
         ScopedDenormalDisable sdd;
-        effect_->init_();
+        effect_.init_();
     }
 
-    template <typename FloatOrDouble>
+    template <typename BlockTransformer>
+    void process_from_transformer_(BlockTransformer& block,
+        const int32_t block_size)
+    {
+        assert_ready_();
+        if (block.is_nullptr()) return;
+        ScopedDenormalDisable sdd;
+        for (int32_t j = 0; j < block_size; j += timer_size_) {
+            effect_.read_atomic_params_();
+            if (snap_smooth_params_) {
+                effect_.snap_();
+                snap_smooth_params_ = false;
+            }
+            int32_t limit = std::min(j+timer_size_, block_size);
+            for (int32_t i = j; i < limit; ++i) {
+                effect_.unlock_advance_();
+                block.iterate_(i, effect_);
+            }
+            effect_.publish_meter_();
+        }
+    }
+
+    template<typename FloatType>
+    void process_io(FloatType* const left_io, FloatType* const right_io,
+        const int32_t block_size)
+    {
+        using VecType = typename TopLevelEffectType::VecType;
+        process_from_transformer_(
+            param_impl::BlockTransformer_IO<FloatType, VecType>(
+                left_io, right_io), block_size);
+    }
+
+    template<typename FloatType>
+    void process_io_sc(FloatType* const left_io,
+        FloatType* const right_io,
+        const FloatType* const left_sc,
+        const FloatType* const right_sc,
+        const int32_t block_size)
+    {
+        using VecType = typename TopLevelEffectType::VecType;
+        process_from_transformer_(
+               param_impl::BlockTransformer_IO_SC<FloatType, VecType>(
+                   left_io, right_io, left_sc, right_sc), block_size);
+    }
+
+    /*template <typename FloatOrDouble>
     void process(FloatOrDouble* const left_io,
         FloatOrDouble* const right_io,
         const FloatOrDouble* const left_sc,
@@ -339,35 +444,32 @@ public:
         const int32_t block_size)
     {
         assert_ready_();
+        if (!(left_io && right_io)) return;
+        const bool valid_sc = left_sc && right_sc;
         ScopedDenormalDisable sdd;
         for (int32_t j = 0; j < block_size; j += timer_size_) {
-            effect_->read_atomic_params_();
+            effect_.read_atomic_params_();
             if (snap_smooth_params_) {
-                effect_->snap_();
+                effect_.snap_();
                 snap_smooth_params_ = false;
             }
             int32_t limit = std::min(j+timer_size_, block_size);
             for (int32_t i = j; i < limit; ++i) {
-                effect_->unlock_advance_();
-                Vec_pd sample, sidechain;
-                const bool valid_io = right_io && left_io;
-                if (valid_io) {
-                    sample = {static_cast<double>(right_io[i]),
-                        static_cast<double>(left_io[i])};
-                }
-                if (right_sc && left_sc) {
+                effect_.unlock_advance_();
+                Vec_pd sample = {static_cast<double>(right_io[i]),
+                        static_cast<double>(left_io[i])},
+                    sidechain; // default ctor init with value 0
+                if (valid_sc) {
                     sidechain = {static_cast<double>(right_sc[i]),
                         static_cast<double>(left_sc[i])};
                 }
-                sample = effect_->iterate_(sample, sidechain);
-                if (valid_io) {
-                    left_io[i] = static_cast<FloatOrDouble>(sample.d0());
-                    right_io[i] = static_cast<FloatOrDouble>(sample.d1());
-                }
+                sample = effect_.iterate_(sample, sidechain);
+                left_io[i] = static_cast<FloatOrDouble>(sample.d0());
+                right_io[i] = static_cast<FloatOrDouble>(sample.d1());
             }
-            effect_->publish_meter_();
+            effect_.publish_meter_();
         }
-    }
+    }*/
 };
 
 //
