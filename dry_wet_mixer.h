@@ -41,6 +41,7 @@ struct DryWetMixer {
     }
 
     void unlock_advance(bool& reset_dry, bool& reset_wet) {
+        assert(ParamType::elem_count == 1);
         reset_dry = false;
         reset_wet = false;
         auto prev_wet = param_.wet_lin.get_current().data();
@@ -80,7 +81,8 @@ struct DryWetMixer {
         return param_.wet_lin.get_target();
     }
 
-    // Stateless, can be called multiple times per sample
+    // This iterate is stateless and can be called multiple times per input
+    // sample
     template <typename ArgType>
     ArgType iterate(const ArgType& dry, const ArgType& wet) {
         const ArgType wet_lin = ArgType::from(param_.wet_lin.get_current());

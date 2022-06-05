@@ -143,6 +143,11 @@ public:
     }
 
     VecType preview_next_get() const {
+        #ifdef JON_DSP_VALIDATE_PARAMS
+        // We can't assert(can_advance_) here as we might not be ready yet
+        assert(valid_current_);
+        assert(valid_target_);
+        #endif
         VecType next_get, discard;
         calc_next_current_delta_(next_get, discard);
         return next_get;
@@ -289,68 +294,6 @@ inline constexpr int32_t max_size_needed(const int32_t size_at_4448) {
     return scale_size_by_sample_rate(384000, size_at_4448, 1);
 }
 
-namespace param_impl {
-
-// Block transformer for two arrays of IOFloatType (stereo), and an
-// effect that processes VecType
-template <typename IOFloatType, typename VecType>
-struct BlockTransformer_IO {
-    IOFloatType *const left_io_, *const right_io_;
-    BlockTransformer_IO(IOFloatType* const left_io,
-        IOFloatType* const right_io)
-        : left_io_ {left_io}, right_io_ {right_io} {}
-
-    bool is_nullptr() const {
-        return !(left_io_ && right_io_);
-    }
-
-    template <typename EffectType>
-    void iterate_(const int32_t i, EffectType& effect) const {
-        using elem_t = typename VecType::elem_t;
-        VecType sample = VecType::set_duo(static_cast<elem_t>(right_io_[i]),
-            static_cast<elem_t>(left_io_[i]));
-        sample = effect.iterate_(sample);
-        left_io_[i] = static_cast<IOFloatType>(sample.template get<0>());
-        right_io_[i] = static_cast<IOFloatType>(sample.template get<1>());
-    }
-};
-
-// BlockTransformer_IO with a sidechain input. It's fine for the sidechain to
-// be nullptr
-template <typename IOFloatType, typename VecType>
-struct BlockTransformer_IO_SC {
-    IOFloatType *const left_io_, *const right_io_;
-    const IOFloatType *const left_sc_, *const right_sc_;
-    BlockTransformer_IO_SC(IOFloatType* const left_io,
-        IOFloatType* const right_io,
-        const IOFloatType *const left_sc,
-        const IOFloatType *const right_sc)
-        : left_io_ {left_io}, right_io_ {right_io},
-        left_sc_ {left_sc == nullptr ? left_io : left_sc},
-        right_sc_ {right_sc == nullptr ? right_io : right_sc} {}
-
-    bool is_nullptr() const {
-        return !(left_io_ && right_io_);
-    }
-
-    template <typename EffectType>
-    void iterate_(const int32_t i, EffectType& effect) const {
-        using elem_t = typename VecType::elem_t;
-        VecType sample = VecType::set_duo(static_cast<elem_t>(right_io_[i]),
-            static_cast<elem_t>(left_io_[i]));
-        const VecType sidechain = VecType::set_duo(
-            static_cast<elem_t>(right_sc_[i]),
-            static_cast<elem_t>(left_sc_[i]));
-        sample = effect.iterate_(sample, sidechain);
-        left_io_[i] = static_cast<IOFloatType>(sample.template get<0>());
-        right_io_[i] = static_cast<IOFloatType>(sample.template get<1>());
-    }
-};
-
-} // namespace param_impl
-
-// Todo: use std::conditional and a type function to make this object more
-// generic (accept PD or PS, and with / without a SC)
 // If you have some top level effect, then do:
 // class MyTopLevelEffect : public TopLevelEffectManager<MyEffect> { ... }
 // and implement all the methods it calls
@@ -391,85 +334,38 @@ public:
         effect_.init_();
     }
 
-    template <typename BlockTransformer>
-    void process_from_transformer_(BlockTransformer& block,
+    template <typename FloatType>
+    void process_sc(FloatType *const left_io,
+        FloatType *right_io,
+        const FloatType *left_sc,
+        const FloatType *right_sc,
         const int32_t block_size)
     {
+        // Input checks
         assert_ready_();
-        if (block.is_nullptr()) return;
+        assert(left_io != nullptr);
+        if (left_io == nullptr) return;
+        right_io = right_io != nullptr ? right_io : left_io;
+        left_sc = left_sc != nullptr ? left_sc : left_io;
+        // We don't pick left_sc here as
+        // left_sc == nullptr && right_sc == nullptr
+        // would force a mono sidechain
+        right_sc = right_sc != nullptr ? right_sc : right_io;
+
+        // Actual processing
         ScopedDenormalDisable sdd;
-        for (int32_t j = 0; j < block_size; j += timer_size_) {
+        for (int32_t i = 0; i < block_size; i += timer_size_) {
             effect_.read_atomic_params_();
             if (snap_smooth_params_) {
                 effect_.snap_();
                 snap_smooth_params_ = false;
             }
-            int32_t limit = std::min(j+timer_size_, block_size);
-            for (int32_t i = j; i < limit; ++i) {
-                effect_.unlock_advance_();
-                block.iterate_(i, effect_);
-            }
+            const int32_t limit = std::min(i+timer_size_, block_size);
+            effect_.iterate_block_io_(left_io+i, right_io+i,
+                left_sc+i, right_sc+i, limit-i);
             effect_.publish_meter_();
         }
     }
-
-    template<typename FloatType>
-    void process_io(FloatType* const left_io, FloatType* const right_io,
-        const int32_t block_size)
-    {
-        using VecType = typename TopLevelEffectType::VecType;
-        process_from_transformer_(
-            param_impl::BlockTransformer_IO<FloatType, VecType>(
-                left_io, right_io), block_size);
-    }
-
-    template<typename FloatType>
-    void process_io_sc(FloatType* const left_io,
-        FloatType* const right_io,
-        const FloatType* const left_sc,
-        const FloatType* const right_sc,
-        const int32_t block_size)
-    {
-        using VecType = typename TopLevelEffectType::VecType;
-        process_from_transformer_(
-               param_impl::BlockTransformer_IO_SC<FloatType, VecType>(
-                   left_io, right_io, left_sc, right_sc), block_size);
-    }
-
-    /*template <typename FloatOrDouble>
-    void process(FloatOrDouble* const left_io,
-        FloatOrDouble* const right_io,
-        const FloatOrDouble* const left_sc,
-        const FloatOrDouble* const right_sc,
-        const int32_t block_size)
-    {
-        assert_ready_();
-        if (!(left_io && right_io)) return;
-        const bool valid_sc = left_sc && right_sc;
-        ScopedDenormalDisable sdd;
-        for (int32_t j = 0; j < block_size; j += timer_size_) {
-            effect_.read_atomic_params_();
-            if (snap_smooth_params_) {
-                effect_.snap_();
-                snap_smooth_params_ = false;
-            }
-            int32_t limit = std::min(j+timer_size_, block_size);
-            for (int32_t i = j; i < limit; ++i) {
-                effect_.unlock_advance_();
-                Vec_pd sample = {static_cast<double>(right_io[i]),
-                        static_cast<double>(left_io[i])},
-                    sidechain; // default ctor init with value 0
-                if (valid_sc) {
-                    sidechain = {static_cast<double>(right_sc[i]),
-                        static_cast<double>(left_sc[i])};
-                }
-                sample = effect_.iterate_(sample, sidechain);
-                left_io[i] = static_cast<FloatOrDouble>(sample.d0());
-                right_io[i] = static_cast<FloatOrDouble>(sample.d1());
-            }
-            effect_.publish_meter_();
-        }
-    }*/
 };
 
 //

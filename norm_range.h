@@ -71,7 +71,7 @@ struct FlipNorm {
 
     FloatType flipn(const FloatType norm_val) const {
         assert(0 <= norm_val && norm_val <= 1.0);
-        return flip_ ? 1.0 - norm_val : norm_val;
+        return flip_ ? static_cast<FloatType>(1.0) - norm_val : norm_val;
     }
 };
 
@@ -446,7 +446,9 @@ inline juce::NormalisableRange<FloatType> get_juce_norm_range(
 {
     assert(range.lowerb() == snapper.lowerb() &&
         range.upperb() == snapper.upperb());
-    return juce::NormalisableRange<FloatType>(range.lowerb(), range.upperb(),
+    return juce::NormalisableRange<FloatType>(
+        static_cast<FloatType>(range.lowerb()),
+        static_cast<FloatType>(range.upperb()),
     [range](FloatType start, FloatType end, FloatType norm_val) -> FloatType
     {
         (void) start; (void) end;
