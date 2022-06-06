@@ -432,6 +432,23 @@ public:
     }
 };
 
+#ifdef JON_DSP_JUCE
+// Utility class to use lambdas with juce audio parameters, instead of
+// implementing listeners.
+struct LambdaizedAPPL : public juce::AudioProcessorParameter::Listener {
+    // Warning: changing this to a reference causes crashes
+    const std::function<void()> f_;
+    LambdaizedAPPL(const std::function<void()>& f) : f_{f} {}
+
+    void parameterValueChanged(int i, float new_val_normalized) override {
+        (void) i; (void) new_val_normalized; f_();
+    }
+    void parameterGestureChanged(int i, bool g) override {
+        (void) i; (void) g;
+    }
+};
+#endif
+
 } // namespace jon_dsp
 
 // Optional convenience macros. Note that you cannot declare two of the same
