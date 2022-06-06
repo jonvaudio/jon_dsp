@@ -273,8 +273,8 @@ static constexpr int32_t STANDARD_SAMPLE_RATES[] = {
     384000
 };
 
-static constexpr int32_t STANDARD_SAMPLE_RATES_MIN = STANDARD_SAMPLE_RATES[0],
-    STANDARD_SAMPLE_RATES_MAX = 384000;
+static constexpr float STANDARD_SAMPLE_RATES_MIN = 8000.0f,
+    STANDARD_SAMPLE_RATES_MAX = 384000.0f;
 
 // Scale some kind of size by common sample rates. Values outside the range of
 // common sample rates will be constrained.
@@ -299,35 +299,38 @@ inline constexpr int32_t max_size_needed(const int32_t size_at_4448) {
 // and implement all the methods it calls
 template <typename TopLevelEffectType, int32_t BlockSizeAt4448 = 256>
 class TopLevelEffectManager {
-    int32_t sample_rate_, timer_size_;
+    // float can represent any conventional sample rate exactly, and be casted
+    // to double without warning
+    float sample_rate_;
+    int32_t timer_size_;
     bool snap_smooth_params_;
     TopLevelEffectType& effect_;
 
     void assert_ready_() const { assert(initialised()); }
 public:
-    TopLevelEffectManager() : sample_rate_{0}, timer_size_{0},
+    TopLevelEffectManager() : sample_rate_{0.0f}, timer_size_{0},
         snap_smooth_params_{true},
         effect_{*static_cast<TopLevelEffectType*>(this)} {}
 
-    bool initialised() const { return sample_rate_ != 0; }
+    bool initialised() const { return sample_rate_ != 0.0f; }
     bool atomic_params_have_been_read() const {
         assert_ready_();
         return !snap_smooth_params_;
     }
 
-    int32_t sample_rate() const { assert_ready_(); return sample_rate_; }
+    float sample_rate() const { assert_ready_(); return sample_rate_; }
 
-    void init(const int32_t sample_rate) {
+    void init(const float sample_rate) {
         assert(STANDARD_SAMPLE_RATES_MIN <= sample_rate &&
             sample_rate <= STANDARD_SAMPLE_RATES_MAX);
         // For non-debug builds, we also want to constrain the sample rate
         // to avoid buffer overflows etc
-        const int32_t safe_sample_rate =
+        const float safe_sample_rate =
             std::min(std::max(STANDARD_SAMPLE_RATES_MIN, sample_rate),
                 STANDARD_SAMPLE_RATES_MAX);
         sample_rate_ = safe_sample_rate;
         timer_size_ = scale_size_by_sample_rate(
-            safe_sample_rate, BlockSizeAt4448, 1);
+            static_cast<int32_t>(safe_sample_rate), BlockSizeAt4448, 1);
         snap_smooth_params_ = true;
 
         ScopedDenormalDisable sdd;
