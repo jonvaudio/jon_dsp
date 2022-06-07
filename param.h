@@ -414,20 +414,35 @@ public:
     }
 };
 
+// AtomicParam does not need validation, as it won't be read from until
+// it's been written to for the first time.
+// But AtomicParamGroupMemeber does, as store()ing to another member of the
+// group will trigger a read from all members.
+// The validation for AtomicParamGroupMember is only for very first call
+// of init() due to complications, but this is good enough
 template <typename FloatOrDouble>
 class AtomicParamGroupMember {
     std::atomic<FloatOrDouble> atomic_param_{FloatOrDouble{}};
     AtomicParamGroup& group_;
+    #ifdef JON_DSP_VALIDATE_PARAMS
+    bool init_first_time_ {false};
+    #endif
 public:
     AtomicParamGroupMember(AtomicParamGroup& group)
         : group_{group} {}
 
     void store(const FloatOrDouble& new_value) {
         atomic_param_.store(new_value);
+        #ifdef JON_DSP_VALIDATE_PARAMS
+        init_first_time_ = true;
+        #endif
         group_.store();
     }
 
     FloatOrDouble load() const {
+        #ifdef JON_DSP_VALIDATE_PARAMS
+        assert(init_first_time_);
+        #endif
         return atomic_param_.load();
     }
 };
