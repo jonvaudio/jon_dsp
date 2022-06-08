@@ -53,14 +53,14 @@ struct DryWetMixer {
 
     static constexpr double min_db_ = static_cast<double>(MIN_DB);
 
-    void set_wet(const ParamType& wet, const int32_t sample_rate) {
+    void set_wet(const ParamType& wet, const float sample_rate) {
         assert(((ParamType {0.0} <= wet) && (wet <= ParamType {1.0}))
             .debug_valid_eq(true));
         ParamType wet_lin = ((wet == 0.0) || (wet == 1.0))
             .choose(wet, db_to_volt_std(min_db_ + (-min_db_ * wet)));
         param_.wet_lin.set(wet_lin, sample_rate);
     }
-    void set_wet_pc(const ParamType wet_pc, const int32_t sample_rate) {
+    void set_wet_pc(const ParamType wet_pc, const float sample_rate) {
         set_wet(wet_pc * 0.01, sample_rate);
     }
     bool this_sample_100pc_wet_and_on_target() {
@@ -74,6 +74,10 @@ struct DryWetMixer {
         return param_.wet_lin.get_current().data() == 0.0
             && param_.wet_lin.get_target().data() == 0.0;
     }
+    /*bool first_wet_sample_after_dry() {
+        return param_.wet_lin.get_current().data() == 0.0
+            && param_.wet_lin.get_target().data() != 0.0;
+    }*/
     bool this_sample_has_any_wet_signal() {
         return !this_sample_100pc_dry_and_on_target();
     }

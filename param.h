@@ -100,7 +100,7 @@ public:
         #endif
     }
 
-    void set(const VecType& new_target, const int32_t sample_rate) {
+    void set(const VecType& new_target, const float sample_rate) {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(sample_rate > 0);
         valid_target_ = true;
@@ -369,6 +369,14 @@ public:
             effect_.publish_meter_();
         }
     }
+
+    template <typename FloatType>
+    void process(FloatType *const left_io,
+        FloatType *right_io,
+        const int32_t block_size)
+    {
+        process_sc<FloatType>(left_io, right_io, nullptr, nullptr, block_size);
+    }
 };
 
 //
@@ -386,10 +394,20 @@ class AtomicParam {
     std::atomic<FloatOrDouble> atomic_param_ {FloatOrDouble{}};
     // Init to false, so nothing is read until an actual store is received
     std::atomic<bool> flag_ {false};
+    #ifdef JON_DSP_VALIDATE_PARAMS
+    bool init_first_time_ {false};
+    #endif
 public:
+    void store() {
+        flag_.store(true);
+    }
+
     void store(const FloatOrDouble& new_value) {
         atomic_param_.store(new_value);
-        flag_.store(true);
+        #ifdef JON_DSP_VALIDATE_PARAMS
+        init_first_time_ = true;
+        #endif
+        store();
     }
 
     bool consume() {
@@ -399,6 +417,9 @@ public:
 
     // Has NO effect on flags
     FloatOrDouble load() const {
+        #ifdef JON_DSP_VALIDATE_PARAMS
+        assert(init_first_time_);
+        #endif
         return atomic_param_.load();
     }
 };
