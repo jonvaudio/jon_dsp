@@ -6,7 +6,7 @@
 
 #ifdef __clang__
     // We need clang 12 or newer on sse to use this pragma
-    #if __clang_major__ >= 12 && SIMD_GRANODI_ARCH_SSE
+    #if __clang_major__ >= 12 && defined SIMD_GRANODI_ARCH_SSE
         #pragma STDC FENV_ACCESS ON
     #else
         #define JON_DSP_DENORMAL_NOINLINE __attribute__((noinline, optnone))
