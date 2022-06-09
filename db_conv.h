@@ -31,8 +31,7 @@ inline VecType db_to_volt_std(const VecType& x) {
 
 //
 //
-// CEPHES FLOAT
-// (float accuracy but double smoothness, no error checking or exceptions)
+// CEPHES
 
 template <typename VecType>
 inline VecType volt_to_db_cm(const VecType& x,
