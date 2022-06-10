@@ -35,20 +35,8 @@ struct DryWetMixer {
         param_.snap();
     }
 
-    void unlock_advance() {
-        param_.unlock_advance();
-        (void) param_.wet_lin.advance_then_get();
-    }
-
-    void unlock_advance(bool& reset_dry, bool& reset_wet) {
-        assert(ParamType::elem_count == 1);
-        reset_dry = false;
-        reset_wet = false;
-        auto prev_wet = param_.wet_lin.get_current().data();
-        param_.unlock_advance();
-        auto current_wet = param_.wet_lin.advance_then_get().data();
-        if (prev_wet == 1.0 && current_wet != 1.0) reset_dry = true;
-        if (prev_wet == 0.0 && current_wet != 0.0) reset_wet = true;
+    void reset() {
+        param_.reset();
     }
 
     static constexpr double min_db_ = static_cast<double>(MIN_DB);
@@ -60,36 +48,60 @@ struct DryWetMixer {
             .choose(wet, db_to_volt_std(min_db_ + (-min_db_ * wet)));
         param_.wet_lin.set(wet_lin, sample_rate);
     }
-    void set_wet_pc(const ParamType wet_pc, const float sample_rate) {
+    void set_wet_pc(const ParamType& wet_pc, const float sample_rate) {
         set_wet(wet_pc * 0.01, sample_rate);
     }
-    bool this_sample_100pc_wet_and_on_target() {
-        return param_.wet_lin.get_current().data() == 1.0
-            && param_.wet_lin.get_target().data() == 1.0;
+
+    // Call AFTER advance()
+    bool any_dry_signal() {
+        static_assert(ParamType::elem_count == 1, "");
+        return get_current().data() != 1.0;
     }
-    bool this_sample_has_any_dry_signal() {
-        return !this_sample_100pc_wet_and_on_target();
+
+    // Call AFTER advance()
+    bool any_wet_signal() {
+        static_assert(ParamType::elem_count == 1, "");
+        return get_current().data() != 0.0;
     }
-    bool this_sample_100pc_dry_and_on_target() {
-        return param_.wet_lin.get_current().data() == 0.0
-            && param_.wet_lin.get_target().data() == 0.0;
-    }
-    /*bool first_wet_sample_after_dry() {
-        return param_.wet_lin.get_current().data() == 0.0
-            && param_.wet_lin.get_target().data() != 0.0;
-    }*/
-    bool this_sample_has_any_wet_signal() {
-        return !this_sample_100pc_dry_and_on_target();
+
+    ParamType get_current() const {
+        return param_.wet_lin.get_current();
     }
     ParamType get_target() const {
         return param_.wet_lin.get_target();
     }
 
+    // Call BEFORE advance()
+    bool should_reset_wet_before_advance() const {
+        static_assert(ParamType::elem_count == 1, "");
+        return get_current().data() == 0.0 && get_target().data() != 0.0;
+    }
+
+    // Call BEFORE advance()
+    bool should_reset_dry_before_advance() const {
+        static_assert(ParamType::elem_count == 1, "");
+        return get_current().data() == 1.0 && get_target().data() != 1.0;
+    }
+
+    void advance() {
+        param_.unlock_advance();
+        (void) param_.wet_lin.advance_then_get();
+    }
+
+    template <typename ArgType>
+    ArgType advance_then_iterate(const ArgType& dry, const ArgType& wet) {
+        param_.unlock_advance();
+        const ArgType wet_lin = param_.wet_lin.advance_then_get()
+            .template to<ArgType>();
+        return dry_wet_mix(dry, wet, wet_lin);
+    }
+
     // This iterate is stateless and can be called multiple times per input
     // sample
     template <typename ArgType>
-    ArgType iterate(const ArgType& dry, const ArgType& wet) {
-        const ArgType wet_lin = ArgType::from(param_.wet_lin.get_current());
+    ArgType iterate_stateless(const ArgType& dry, const ArgType& wet) {
+        const ArgType wet_lin = param_.wet_lin.get_current()
+            .template to<ArgType>();
         return dry_wet_mix(dry, wet, wet_lin);
     }
 };

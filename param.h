@@ -104,8 +104,8 @@ public:
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(sample_rate > 0);
         valid_target_ = true;
-        // We don't assert(valid_current_) as we might not have snapped at
-        // the start yet (see comment from snap_() as to why we don't snap
+        // We don't assert(valid_current_) as we might not have reset at
+        // the start yet (see comment from reset_() as to why we don't reset
         // when setting the parameter for the first time)
         #endif
         target_ = new_target;
@@ -142,17 +142,6 @@ public:
         return current_;
     }
 
-    VecType preview_next_get() const {
-        #ifdef JON_DSP_VALIDATE_PARAMS
-        // We can't assert(can_advance_) here as we might not be ready yet
-        assert(valid_current_);
-        assert(valid_target_);
-        #endif
-        VecType next_get, discard;
-        calc_next_current_delta_(next_get, discard);
-        return next_get;
-    }
-
     VecType get_current() const {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(valid_current_);
@@ -167,11 +156,11 @@ public:
         return target_;
     }
 
-    // Snap is called just before we start using the parameter, not when we
+    // Reset is called just before we start using the parameter, not when we
     // set the parameter for the first time. As there might be several
     // "first times" where the parameter is loaded in from different places
     // (defaults, presets etc) before the audio starts playing.
-    void snap_() {
+    void reset_() {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(valid_target_);
         valid_current_ = true;
@@ -226,8 +215,8 @@ class SmoothParamGroupManager {
     struct Init_ {
         static void call_method(SmoothParamValidated<VecType>& p) { p.init_(); }
     };
-    struct Snap_ {
-        static void call_method(SmoothParamValidated<VecType>& p) { p.snap_(); }
+    struct Reset_ {
+        static void call_method(SmoothParamValidated<VecType>& p) { p.reset_(); }
     };
     struct UnlockAdvance_ {
         static void call_method(SmoothParamValidated<VecType>& p) {
@@ -240,9 +229,9 @@ public:
             SmoothParamValidated<VecType>, Init_>(
                     reinterpret_cast<char*>(this));
     }
-    void snap() {
+    void reset() {
         hidden::param_group_method_caller_<ParamGroupType,
-            SmoothParamValidated<VecType>, Snap_>(
+            SmoothParamValidated<VecType>, Reset_>(
                 reinterpret_cast<char*>(this));
     }
     void unlock_advance() {
@@ -256,7 +245,6 @@ template <typename T>
 inline constexpr T max_constexpr(const T& a, const T& b) {
     return a > b ? a : b;
 }
-
 
 static constexpr int32_t STANDARD_SAMPLE_RATES[] = {
       8000,
@@ -303,19 +291,19 @@ class TopLevelEffectManager {
     // to double without warning
     float sample_rate_;
     int32_t timer_size_;
-    bool snap_smooth_params_;
+    bool should_reset_this_block_;
     TopLevelEffectType& effect_;
 
     void assert_ready_() const { assert(initialised()); }
 public:
     TopLevelEffectManager() : sample_rate_{0.0f}, timer_size_{0},
-        snap_smooth_params_{true},
+        should_reset_this_block_{true},
         effect_{*static_cast<TopLevelEffectType*>(this)} {}
 
     bool initialised() const { return sample_rate_ != 0.0f; }
     bool atomic_params_have_been_read() const {
         assert_ready_();
-        return !snap_smooth_params_;
+        return !should_reset_this_block_;
     }
 
     float sample_rate() const { assert_ready_(); return sample_rate_; }
@@ -331,10 +319,16 @@ public:
         sample_rate_ = safe_sample_rate;
         timer_size_ = scale_size_by_sample_rate(
             static_cast<int32_t>(safe_sample_rate), BlockSizeAt4448, 1);
-        snap_smooth_params_ = true;
+        should_reset_this_block_ = true;
 
         ScopedDenormalDisable sdd;
         effect_.init_();
+    }
+
+    void reset() {
+        assert_ready_();
+        ScopedDenormalDisable sdd;
+        effect.reset_();
     }
 
     template <typename FloatType>
@@ -359,9 +353,9 @@ public:
         ScopedDenormalDisable sdd;
         for (int32_t i = 0; i < block_size; i += timer_size_) {
             effect_.read_atomic_params_();
-            if (snap_smooth_params_) {
-                effect_.snap_();
-                snap_smooth_params_ = false;
+            if (should_reset_this_block_) {
+                effect_.reset_();
+                should_reset_this_block_ = false;
             }
             const int32_t limit = std::min(i+timer_size_, block_size);
             effect_.iterate_block_io_(left_io+i, right_io+i,
