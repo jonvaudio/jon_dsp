@@ -4,19 +4,24 @@
 
 #define JON_DSP_DENORMAL_ERROR "Cannot modify floating point environment"
 
+// Note: I have disabled FENV_ACCESS controls in both clang and MSVC++. It was
+// causing a huge slowdown in MSVC++. I haven't tested whether that is also
+// the case in clang, but I am avoiding using it for now.
+
 #ifdef __clang__
     // We need clang 12 or newer on sse to use this pragma
-    #if __clang_major__ >= 12 && defined SIMD_GRANODI_ARCH_SSE
-        #pragma STDC FENV_ACCESS ON
-    #else
+    //#if __clang_major__ >= 12 && defined SIMD_GRANODI_ARCH_SSE
+        //#pragma STDC FENV_ACCESS ON
+    //#else
         #define JON_DSP_DENORMAL_NOINLINE __attribute__((noinline, optnone))
-    #endif
+    //#endif
 #elif defined __GNUC__
 // GCC treats our intrinsics / asm as a signal fence, so this is probably
 // not needed. But using it in case of future changes
 #define JON_DSP_DENORMAL_NOINLINE __attribute__((noinline, optimize("-O0")))
 #elif defined _MSC_VER
-#pragma fenv_access (on)
+//#pragma fenv_access (on)
+#define JON_DSP_DENORMAL_NOINLINE __declspec(noinline)
 #else
 #error JON_DSP_DENORMAL_ERROR
 #endif
