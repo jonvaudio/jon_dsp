@@ -292,18 +292,15 @@ template <typename TopLevelEffectType, int32_t BlockSizeAt4448 = 256>
 class TopLevelEffectManager {
     // float can represent any conventional sample rate exactly, and be casted
     // to double without warning
-    float sample_rate_;
-    int32_t timer_size_;
-    bool should_reset_this_block_;
-    TopLevelEffectType& effect_;
+    float sample_rate_{0.0f};
+    int32_t timer_size_{0};
+    bool should_reset_this_block_{true};
+    TopLevelEffectType& effect() {
+        return *static_cast<TopLevelEffectType*>(this);
+    }
 
     void sg_vectorcall(assert_ready_)() const { assert(initialised()); }
 public:
-    sg_vectorcall(TopLevelEffectManager)() :
-        sample_rate_{0.0f}, timer_size_{0},
-        should_reset_this_block_{true},
-        effect_{*static_cast<TopLevelEffectType*>(this)} {}
-
     bool sg_vectorcall(initialised)() const { return sample_rate_ != 0.0f; }
     bool sg_vectorcall(atomic_params_have_been_read)() const {
         assert_ready_();
@@ -328,13 +325,13 @@ public:
         should_reset_this_block_ = true;
 
         ScopedDenormalDisable sdd;
-        effect_.init_();
+        effect().init_();
     }
 
     void sg_vectorcall(reset)() {
         assert_ready_();
         ScopedDenormalDisable sdd;
-        effect.reset_();
+        effect().reset_();
     }
 
     template <typename FloatType>
@@ -358,15 +355,15 @@ public:
         // Actual processing
         ScopedDenormalDisable sdd;
         for (int32_t i = 0; i < block_size; i += timer_size_) {
-            effect_.read_atomic_params_();
+            effect().read_atomic_params_();
             if (should_reset_this_block_) {
-                effect_.reset_();
+                effect().reset_();
                 should_reset_this_block_ = false;
             }
             const int32_t limit = std::min(i+timer_size_, block_size);
-            effect_.iterate_block_io_(left_io+i, right_io+i,
+            effect().iterate_block_io_(left_io+i, right_io+i,
                 left_sc+i, right_sc+i, limit-i);
-            effect_.publish_meter_();
+            effect().publish_meter_();
         }
     }
 
