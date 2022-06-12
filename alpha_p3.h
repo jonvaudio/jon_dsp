@@ -15,8 +15,8 @@ static constexpr double conventional_time_scale_ = 0.45454545454545453;
 // filters calc from time)
 // Gives an alpha of 0.0 for true instant attack / release if time_ms = 0.0
 template <typename VecType>
-inline VecType exp_smoothing_alpha_p3(const double sample_rate,
-    const VecType& time_ms)
+inline VecType sg_vectorcall(exp_smoothing_alpha_p3)(const double sample_rate,
+    const VecType time_ms)
 {
     VecType denom = time_ms * (sample_rate * 0.001);
     auto dgtz = denom > 0.0;

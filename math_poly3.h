@@ -8,16 +8,16 @@ template <typename CoeffType>
 struct Poly3 {
     CoeffType a_, b_, c_, d_;
 
-    Poly3() : a_ {0.0}, b_ {0.0}, c_ {1.0}, d_ {0.0} {}
-    Poly3(const CoeffType& a, const CoeffType& b, const CoeffType& c,
-        const CoeffType& d)
+    sg_vectorcall(Poly3)() : a_ {0.0}, b_ {0.0}, c_ {1.0}, d_ {0.0} {}
+    sg_vectorcall(Poly3)(const CoeffType a, const CoeffType b,
+        const CoeffType c, const CoeffType d)
         : a_ {a}, b_ {b}, c_ {c}, d_ {d} {}
 
     // Calc coefficients for cube that starts at (x1, y1) with gradient g1 and
     // ends at (x2, y2) with gradient g2
-    static Poly3<CoeffType> calc_2p_grad(const CoeffType& x1,
-        const CoeffType& y1, const CoeffType& g1, const CoeffType& x2,
-        const CoeffType& y2, const CoeffType& g2)
+    static Poly3<CoeffType> sg_vectorcall(calc_2p_grad)(const CoeffType x1,
+        const CoeffType y1, const CoeffType g1, const CoeffType x2,
+        const CoeffType y2, const CoeffType g2)
     {
         CoeffType gscale = x2 - x1;
         CoeffType scale = 1.0 / gscale;
@@ -44,9 +44,11 @@ struct Poly3 {
         return result;
     }
 
-    template <typename FloatType>
-    FloatType eval(const FloatType& x) const {
-        return x.mul_add(a_, b_).mul_add(x, c_).mul_add(x, d_);
+    template <typename VecType>
+    VecType sg_vectorcall(eval)(const VecType x) const {
+        return x.mul_add(a_.tempate to<VecType>(), b_.tempate to<VecType>())
+            .mul_add(x, c_.tempate to<VecType>())
+            .mul_add(x, d_.tempate to<VecType>());
     }
 };
 
@@ -54,16 +56,16 @@ template <typename CoeffType>
 struct Poly2 {
     CoeffType a_, b_, c_;
 
-    Poly2() : a_ {0.0}, b_ {1.0}, c_ {0.0} {}
-    Poly2(const CoeffType& a, const CoeffType& b, const CoeffType& c)
-        : a_ {a}, b_ {b}, c_ {c} {}
+    sg_vectorcall(Poly2)() : a_ {0.0}, b_ {1.0}, c_ {0.0} {}
+    sg_vectorcall(Poly2)(const CoeffType a, const CoeffType b,
+        const CoeffType c) : a_ {a}, b_ {b}, c_ {c} {}
 
     // Calc coefficients for quadratic that starts at (x1, y1) with gradient g1
     // and ends at (x2, y2) with gradient g2.
     // Might not work as well as Poly3 for some inputs
-    static Poly2<CoeffType> calc_2p_grad(const CoeffType& x1,
-        const CoeffType& y1, const CoeffType& g1,
-        const CoeffType& x2, const CoeffType& y2, const CoeffType& g2)
+    static Poly2<CoeffType> sg_vectorcall(calc_2p_grad)(const CoeffType x1,
+        const CoeffType y1, const CoeffType g1,
+        const CoeffType x2, const CoeffType y2, const CoeffType g2)
     {
         CoeffType gscale = x2 - x1;
         CoeffType scale = 1.0 / gscale;
@@ -86,9 +88,10 @@ struct Poly2 {
         return result;
     }
 
-    static Poly2<CoeffType> calc_3p(const CoeffType& x1, const CoeffType& y1,
-        const CoeffType& x2, const CoeffType& y2,
-        const CoeffType& x3, const CoeffType& y3)
+    static Poly2<CoeffType> sg_vectorcall(calc_3p)(const CoeffType x1,
+        const CoeffType y1,
+        const CoeffType x2, const CoeffType y2,
+        const CoeffType x3, const CoeffType y3)
     {
         CoeffType x2_s = x2 * x2;
         CoeffType x3_s = x3 * x3;
@@ -104,16 +107,18 @@ struct Poly2 {
         return result;
     }
 
-    template <typename FloatType>
-    FloatType eval(const FloatType& x) const {
+    template <typename VecType>
+    VecType sg_vectorcall(eval)(const VecType x) const {
         //return (a_*x + b_)*x + c_;
-        return x.mul_add(a_, b_).mul_add(x, c_);
+        return x.mul_add(a_.template to<VecType>(), b_.template to<VecType>())
+            .mul_add(x, c_.template to<VecType>());
     }
 
-    template <typename FloatType>
-    FloatType deriv(const FloatType& x) const {
+    template <typename VecType>
+    VecType sg_vectorcall(deriv)(const VecType x) const {
         //return 2.0*a_*x + b_;
-        return x.mul_add(2.0*a_, b_);
+        return x.mul_add(2.0*a_.template to<VecType>(),
+            b_.template to<VecType>());
     }
 };
 

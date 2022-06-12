@@ -33,17 +33,17 @@ public:
         if (init_vals.size() == 1) set_all(*(init_vals.begin()));
         else if (init_vals.size() == SIZE) {
             std::size_t i = 0;
-            for (const T& x : init_vals) {
+            for (const T x : init_vals) {
                 if (i < SIZE) data_[i++] = x;
             }
         } else assert(false); // "Initialization list is the wrong size"
     }
 
-    void set_all(const T& x) {
+    void sg_vectorcall(set_all)(const T x) {
         for (std::size_t i = 0; i < SIZE; ++i) data_[i] = x;
     }
 
-    const T& operator[](const std::size_t i) const {
+    T sg_vectorcall(operator[])(const std::size_t i) const {
         assert_i_(i); return data_[i];
     }
 
@@ -61,22 +61,22 @@ class ParamValidated {
     bool valid_;
     #endif
 public:
-    ParamValidated() { init_(); }
+    sg_vectorcall(ParamValidated)() { init_(); }
 
-    void init_() {
+    void sg_vectorcall(init_)() {
         #ifdef JON_DSP_VALIDATE_PARAMS
         valid_ = false;
         #endif
     }
 
-    void set(const VecType& x) {
+    void sg_vectorcall(set)(const VecType x) {
         #ifdef JON_DSP_VALIDATE_PARAMS
         valid_ = true;
         #endif
         current_ = x;
     }
 
-    VecType get() const {
+    VecType sg_vectorcall(get)() const {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(valid_);
         #endif
@@ -93,14 +93,14 @@ class SmoothParamValidated {
     bool valid_current_, valid_target_, can_advance_;
     #endif
 public:
-    SmoothParamValidated() { init_(); }
-    void init_() {
+    sg_vectorcall(SmoothParamValidated)() { init_(); }
+    void sg_vectorcall(init_)() {
         #ifdef JON_DSP_VALIDATE_PARAMS
         valid_current_ = false; valid_target_ = false; can_advance_ = false;
         #endif
     }
 
-    void set(const VecType& new_target, const float sample_rate) {
+    void sg_vectorcall(set)(const VecType new_target, const float sample_rate) {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(sample_rate > 0);
         valid_target_ = true;
@@ -114,8 +114,8 @@ public:
             (smooth_time_ms_ * elem_t(0.001) * elem_t(sample_rate));
     }
 
-    void calc_next_current_delta_(VecType& next_current,
-        VecType& next_delta) const
+    void sg_vectorcall(calc_next_current_delta_)(VecType next_current,
+        VecType next_delta) const
     {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(valid_current_);
@@ -133,7 +133,7 @@ public:
         next_delta = (!should_snap).choose_else_zero(delta_);
     }
 
-    VecType advance_then_get() {
+    VecType sg_vectorcall(advance_then_get)() {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(can_advance_);
         can_advance_ = false;
@@ -142,14 +142,14 @@ public:
         return current_;
     }
 
-    VecType get_current() const {
+    VecType sg_vectorcall(get_current)() const {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(valid_current_);
         #endif
         return current_;
     }
 
-    VecType get_target() const {
+    VecType sg_vectorcall(get_target)() const {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(valid_target_);
         #endif
@@ -160,7 +160,7 @@ public:
     // set the parameter for the first time. As there might be several
     // "first times" where the parameter is loaded in from different places
     // (defaults, presets etc) before the audio starts playing.
-    void reset_() {
+    void sg_vectorcall(reset_)() {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(valid_target_);
         valid_current_ = true;
@@ -169,7 +169,7 @@ public:
         delta_ = 0;
     }
 
-    void unlock_advance_() {
+    void sg_vectorcall(unlock_advance_)() {
         #ifdef JON_DSP_VALIDATE_PARAMS
         can_advance_ = true;
         #endif
@@ -242,7 +242,7 @@ public:
 };
 
 template <typename T>
-inline constexpr T max_constexpr(const T& a, const T& b) {
+inline constexpr T max_constexpr(const T a, const T b) {
     return a > b ? a : b;
 }
 
@@ -266,8 +266,9 @@ static constexpr float STANDARD_SAMPLE_RATES_MIN = 8000.0f,
 
 // Scale some kind of size by common sample rates. Values outside the range of
 // common sample rates will be constrained.
-inline constexpr int32_t scale_size_by_sample_rate(const int32_t sample_rate,
-    const int32_t size_at_4448, const int32_t smallest)
+inline constexpr int32_t sg_vectorcall(scale_size_by_sample_rate)(
+    const int32_t sample_rate, const int32_t size_at_4448,
+    const int32_t smallest)
 {
     return max_constexpr(smallest,
         sample_rate <= 11025 ? size_at_4448 / 4 :       // 8, 11.025
@@ -278,7 +279,9 @@ inline constexpr int32_t scale_size_by_sample_rate(const int32_t sample_rate,
         size_at_4448 * 8)))));                          // 352.8, 384
 }
 
-inline constexpr int32_t max_size_needed(const int32_t size_at_4448) {
+inline constexpr int32_t sg_vectorcall(max_size_needed)(
+    const int32_t size_at_4448)
+{
     return scale_size_by_sample_rate(384000, size_at_4448, 1);
 }
 
@@ -294,21 +297,24 @@ class TopLevelEffectManager {
     bool should_reset_this_block_;
     TopLevelEffectType& effect_;
 
-    void assert_ready_() const { assert(initialised()); }
+    void sg_vectorcall(assert_ready_)() const { assert(initialised()); }
 public:
-    TopLevelEffectManager() : sample_rate_{0.0f}, timer_size_{0},
+    sg_vectorcall(TopLevelEffectManager)() :
+        sample_rate_{0.0f}, timer_size_{0},
         should_reset_this_block_{true},
         effect_{*static_cast<TopLevelEffectType*>(this)} {}
 
-    bool initialised() const { return sample_rate_ != 0.0f; }
-    bool atomic_params_have_been_read() const {
+    bool sg_vectorcall(initialised)() const { return sample_rate_ != 0.0f; }
+    bool sg_vectorcall(atomic_params_have_been_read)() const {
         assert_ready_();
         return !should_reset_this_block_;
     }
 
-    float sample_rate() const { assert_ready_(); return sample_rate_; }
+    float sg_vectorcall(sample_rate)() const {
+        assert_ready_(); return sample_rate_;
+    }
 
-    void init(const float sample_rate) {
+    void sg_vectorcall(init)(const float sample_rate) {
         assert(STANDARD_SAMPLE_RATES_MIN <= sample_rate &&
             sample_rate <= STANDARD_SAMPLE_RATES_MAX);
         // For non-debug builds, we also want to constrain the sample rate
@@ -325,7 +331,7 @@ public:
         effect_.init_();
     }
 
-    void reset() {
+    void sg_vectorcall(reset)() {
         assert_ready_();
         ScopedDenormalDisable sdd;
         effect.reset_();
@@ -392,11 +398,11 @@ class AtomicParam {
     bool init_first_time_ {false};
     #endif
 public:
-    void store() {
+    void sg_vectorcall(store)() {
         flag_.store(true);
     }
 
-    void store(const FloatOrDouble& new_value) {
+    void sg_vectorcall(store)(const FloatOrDouble new_value) {
         atomic_param_.store(new_value);
         #ifdef JON_DSP_VALIDATE_PARAMS
         init_first_time_ = true;
@@ -404,13 +410,13 @@ public:
         store();
     }
 
-    bool consume() {
+    bool sg_vectorcall(consume)() {
         bool expected = true;
         return flag_.compare_exchange_strong(expected, false);
     }
 
     // Has NO effect on flags
-    FloatOrDouble load() const {
+    FloatOrDouble sg_vectorcall(load)() const {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(init_first_time_);
         #endif
@@ -421,9 +427,9 @@ public:
 class AtomicParamGroup {
     std::atomic<bool> flag_{false};
 public:
-    void store() { flag_.store(true); }
+    void sg_vectorcall(store)() { flag_.store(true); }
 
-    bool consume() {
+    bool sg_vectorcall(consume)() {
         bool expected = true;
         return flag_.compare_exchange_strong(expected, false);
     }
@@ -446,7 +452,7 @@ public:
     AtomicParamGroupMember(AtomicParamGroup& group)
         : group_{group} {}
 
-    void store(const FloatOrDouble& new_value) {
+    void sg_vectorcall(store)(const FloatOrDouble new_value) {
         atomic_param_.store(new_value);
         #ifdef JON_DSP_VALIDATE_PARAMS
         init_first_time_ = true;
@@ -454,7 +460,7 @@ public:
         group_.store();
     }
 
-    FloatOrDouble load() const {
+    FloatOrDouble sg_vectorcall(load)() const {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(init_first_time_);
         #endif

@@ -8,8 +8,8 @@
 namespace jon_dsp {
 
 template<typename VecType>
-inline VecType dry_wet_mix(const VecType& dry, const VecType& wet,
-    const VecType& wet_lin)
+inline VecType sg_vectorcall(dry_wet_mix)(const VecType dry, const VecType wet,
+    const VecType wet_lin)
 {
     assert(((VecType {0.0} <= wet_lin) && (wet_lin <= VecType {1.0}))
         .debug_valid_eq(true));
@@ -26,70 +26,70 @@ struct DryWetMixer {
         SmoothParamValidated<ParamType> wet_lin;
     } param_;
 
-    void init() {
+    void sg_vectorcall(init)() {
         assert(MIN_DB < 0);
         param_.init();
     }
 
-    void snap() {
-        param_.snap();
-    }
-
-    void reset() {
+    void sg_vectorcall(reset)() {
         param_.reset();
     }
 
     static constexpr double min_db_ = static_cast<double>(MIN_DB);
 
-    void set_wet(const ParamType& wet, const float sample_rate) {
+    void sg_vectorcall(set_wet)(const ParamType wet, const float sample_rate) {
         assert(((ParamType {0.0} <= wet) && (wet <= ParamType {1.0}))
             .debug_valid_eq(true));
         ParamType wet_lin = ((wet == 0.0) || (wet == 1.0))
             .choose(wet, db_to_volt_std(min_db_ + (-min_db_ * wet)));
         param_.wet_lin.set(wet_lin, sample_rate);
     }
-    void set_wet_pc(const ParamType& wet_pc, const float sample_rate) {
+    void sg_vectorcall(set_wet_pc)(const ParamType wet_pc,
+        const float sample_rate)
+    {
         set_wet(wet_pc * 0.01, sample_rate);
     }
 
     // Call AFTER advance()
-    bool any_dry_signal() {
+    bool sg_vectorcall(any_dry_signal)() {
         static_assert(ParamType::elem_count == 1, "");
         return get_current().data() != 1.0;
     }
 
     // Call AFTER advance()
-    bool any_wet_signal() {
+    bool sg_vectorcall(any_wet_signal)() {
         static_assert(ParamType::elem_count == 1, "");
         return get_current().data() != 0.0;
     }
 
-    ParamType get_current() const {
+    ParamType sg_vectorcall(get_current)() const {
         return param_.wet_lin.get_current();
     }
-    ParamType get_target() const {
+    ParamType sg_vectorcall(get_target)() const {
         return param_.wet_lin.get_target();
     }
 
     // Call BEFORE advance()
-    bool should_reset_wet_before_advance() const {
+    bool sg_vectorcall(should_reset_wet_before_advance)() const {
         static_assert(ParamType::elem_count == 1, "");
         return get_current().data() == 0.0 && get_target().data() != 0.0;
     }
 
     // Call BEFORE advance()
-    bool should_reset_dry_before_advance() const {
+    bool sg_vectorcall(should_reset_dry_before_advance)() const {
         static_assert(ParamType::elem_count == 1, "");
         return get_current().data() == 1.0 && get_target().data() != 1.0;
     }
 
-    void advance() {
+    void sg_vectorcall(advance)() {
         param_.unlock_advance();
         (void) param_.wet_lin.advance_then_get();
     }
 
     template <typename ArgType>
-    ArgType advance_then_iterate(const ArgType& dry, const ArgType& wet) {
+    ArgType sg_vectorcall(advance_then_iterate)(const ArgType dry,
+        const ArgType wet)
+    {
         param_.unlock_advance();
         const ArgType wet_lin = param_.wet_lin.advance_then_get()
             .template to<ArgType>();
@@ -99,7 +99,9 @@ struct DryWetMixer {
     // This iterate is stateless and can be called multiple times per input
     // sample
     template <typename ArgType>
-    ArgType iterate_stateless(const ArgType& dry, const ArgType& wet) {
+    ArgType sg_vectorcall(iterate_stateless)(const ArgType dry,
+        const ArgType wet)
+    {
         const ArgType wet_lin = param_.wet_lin.get_current()
             .template to<ArgType>();
         return dry_wet_mix(dry, wet, wet_lin);

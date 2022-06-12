@@ -25,7 +25,7 @@ static constexpr double k_shelf_q_ = sqrt_0p5;
 
 // 10^(gain_db/40) = sqrt(10^(gain_db/20)), for peak and shelf filters
 template <typename VecType>
-inline VecType sqrt_db_to_v_(const VecType& gain_db) {
+inline VecType sg_vectorcall(sqrt_db_to_v_)(const VecType gain_db) {
     return (gain_db * 5.7564627324851146e-2).std_exp();
 }
 
@@ -35,20 +35,19 @@ struct Taps1p {
         ParamValidated<VecType> xnm1, ynm1;
     } param_;
 
-    void init() {
+    void sg_vectorcall(init)() {
         param_.init();
-        reset();
     }
 
-    void reset() {
+    void sg_vectorcall(reset)() {
         param_.xnm1.set(0.0); param_.ynm1.set(0.0);
     }
 
-    VecType xnm1() const { return param_.xnm1.get(); }
-    VecType ynm1() const { return param_.ynm1.get(); }
+    VecType sg_vectorcall(xnm1)() const { return param_.xnm1.get(); }
+    VecType sg_vectorcall(ynm1)() const { return param_.ynm1.get(); }
 
-    void set_xnm1(const VecType& a) { param_.xnm1.set(a); }
-    void set_ynm1(const VecType& a) { param_.ynm1.set(a); }
+    void sg_vectorcall(set_xnm1)(const VecType a) { param_.xnm1.set(a); }
+    void sg_vectorcall(set_ynm1)(const VecType a) { param_.ynm1.set(a); }
 };
 
 template <typename VecType>
@@ -57,25 +56,24 @@ struct Taps2p {
         ParamValidated<VecType> xnm1, xnm2, ynm1, ynm2;
     } param_;
 
-    void init() { 
+    void sg_vectorcall(init)() { 
         param_.init();
-        reset();
     }
 
-    void reset() {
+    void sg_vectorcall(reset)() {
         param_.xnm1.set(0.0); param_.xnm2.set(0.0);
         param_.ynm1.set(0.0); param_.ynm2.set(0.0);
     }
 
-    VecType xnm1() const { return param_.xnm1.get(); }
-    VecType xnm2() const { return param_.xnm2.get(); }
-    VecType ynm1() const { return param_.ynm1.get(); }
-    VecType ynm2() const { return param_.ynm2.get(); }
+    VecType sg_vectorcall(xnm1)() const { return param_.xnm1.get(); }
+    VecType sg_vectorcall(xnm2)() const { return param_.xnm2.get(); }
+    VecType sg_vectorcall(ynm1)() const { return param_.ynm1.get(); }
+    VecType sg_vectorcall(ynm2)() const { return param_.ynm2.get(); }
 
-    void set_xnm1(const VecType& a) { param_.xnm1.set(a); }
-    void set_xnm2(const VecType& a) { param_.xnm2.set(a); }
-    void set_ynm1(const VecType& a) { param_.ynm1.set(a); }
-    void set_ynm2(const VecType& a) { param_.ynm2.set(a); }
+    void sg_vectorcall(set_xnm1)(const VecType a) { param_.xnm1.set(a); }
+    void sg_vectorcall(set_xnm2)(const VecType a) { param_.xnm2.set(a); }
+    void sg_vectorcall(set_ynm1)(const VecType a) { param_.ynm1.set(a); }
+    void sg_vectorcall(set_ynm2)(const VecType a) { param_.ynm2.set(a); }
 };
 
 template <typename VecType>
@@ -84,16 +82,16 @@ struct Coeff1p {
         ParamValidated<VecType> b0, b1, a1, c, d;
     } param_;
 
-    void init() { param_.init(); }
+    void sg_vectorcall(init)() { param_.init(); }
 
-    void set_identity() {
+    void sg_vectorcall(set_identity)() {
         param_.d.set(1.0);
         param_.b0.set(0.0); param_.b1.set(0.0); param_.a1.set(0.0);
         param_.c.set(0.0);
     }
 
-    void set_lpf(const typename VecType::elem_t sample_rate,
-        const VecType& corner_freq)
+    void sg_vectorcall(set_lpf)(const typename VecType::elem_t sample_rate,
+        const VecType corner_freq)
     {
         VecType temp {(-two_pi * corner_freq) / sample_rate};
         temp = temp.std_exp();
@@ -103,8 +101,8 @@ struct Coeff1p {
         param_.c.set(1.0); param_.d.set(0.0);
     }
 
-    void set_hpf(const typename VecType::elem_t sample_rate,
-        const VecType& corner_freq)
+    void sg_vectorcall(set_hpf)(const typename VecType::elem_t sample_rate,
+        const VecType corner_freq)
     {
         VecType temp {(-two_pi * corner_freq) / sample_rate};
         temp = temp.std_exp();
@@ -118,7 +116,7 @@ struct Coeff1p {
     // Old comment says this is identity filter at sample_delay = 0, but not
     // sure of this?
     // No output with sample_delay = 1
-    void set_apf(const VecType& sample_delay) {
+    void sg_vectorcall(set_apf)(const VecType sample_delay) {
         assert(((sample_delay >= 0.0) && (sample_delay < 1.0))
             .debug_valid_eq(true));
         param_.b0.set((1.0 - sample_delay) / (1.0 + sample_delay));
@@ -127,9 +125,10 @@ struct Coeff1p {
         param_.c.set(1.0); param_.d.set(0.0);
     }
 
-    void set_low_shelf(const typename VecType::elem_t sample_rate,
-        const VecType& corner_freq,
-        const VecType& gain_db)
+    void sg_vectorcall(set_low_shelf)(
+        const typename VecType::elem_t sample_rate,
+        const VecType corner_freq,
+        const VecType gain_db)
     {
         const VecType theta_c = (two_pi * corner_freq) / sample_rate;
         const VecType mu = db_to_volt_std(gain_db);
@@ -143,9 +142,9 @@ struct Coeff1p {
         param_.d.set(1.0);
     }
 
-    void set_hi_shelf(const typename VecType::elem_t sample_rate,
-        const VecType& corner_freq,
-        const VecType& gain_db)
+    void sg_vectorcall(set_hi_shelf)(const typename VecType::elem_t sample_rate,
+        const VecType corner_freq,
+        const VecType gain_db)
     {
         const VecType theta_c = (two_pi * corner_freq) / sample_rate;
         const VecType mu = db_to_volt_std(gain_db);
@@ -160,7 +159,9 @@ struct Coeff1p {
     }
 
     template <typename ArgType>
-    ArgType iterate(Taps1p<ArgType>& taps, const ArgType& x) const {
+    ArgType sg_vectorcall(iterate)(Taps1p<ArgType>& taps, const ArgType x)
+        const
+    {
         ArgType y = x * ArgType::from(param_.b0.get());
         y += taps.xnm1() * ArgType::from(param_.b1.get());
         y -= taps.ynm1() * ArgType::from(param_.a1.get());
@@ -177,9 +178,9 @@ struct Coeff2p {
         ParamValidated<VecType> b0, b1, b2, a1, a2, c, d;
     } param_;
 
-    void init() { param_.init(); }
+    void sg_vectorcall(init)() { param_.init(); }
 
-    void set_identity() {
+    void sg_vectorcall(set_identity)() {
         param_.d.set(1.0);
         param_.b0.set(0.0); param_.b1.set(0.0); param_.b2.set(0.0);
         param_.a1.set(0.0); param_.a2.set(0.0);
@@ -187,9 +188,9 @@ struct Coeff2p {
     }
 
     // butterworth lpf when q is default value
-    void set_lpf(const typename VecType::elem_t sample_rate,
-        const VecType& corner_freq,
-        const VecType& q = typename VecType::elem_t {sqrt_0p5})
+    void sg_vectorcall(set_lpf)(const typename VecType::elem_t sample_rate,
+        const VecType corner_freq,
+        const VecType q = typename VecType::elem_t {sqrt_0p5})
     {
         const VecType w0 = two_pi * corner_freq / sample_rate;
         const VecType sinw0 = w0.std_sin();
@@ -208,9 +209,10 @@ struct Coeff2p {
     }
 
     // butterworth hpf
-    void set_hpf_cookbook(const typename VecType::elem_t sample_rate,
-        const VecType& corner_freq,
-        const VecType& q = typename VecType::elem_t {sqrt_0p5})
+    void sg_vectorcall(set_hpf_cookbook)(
+        const typename VecType::elem_t sample_rate,
+        const VecType corner_freq,
+        const VecType q = typename VecType::elem_t {sqrt_0p5})
     {
         const VecType w0 = two_pi * corner_freq / sample_rate;
         const VecType sinw0 = w0.std_sin();
@@ -226,9 +228,9 @@ struct Coeff2p {
         param_.c.set(1.0);
         param_.d.set(0.0);
     }
-    void set_hpf(const typename VecType::elem_t sample_rate,
-        const VecType& corner_freq,
-        const VecType& q = typename VecType::elem_t {sqrt_0p5})
+    void sg_vectorcall(set_hpf)(const typename VecType::elem_t sample_rate,
+        const VecType corner_freq,
+        const VecType q = typename VecType::elem_t {sqrt_0p5})
     {
         const VecType theta = two_pi * corner_freq / sample_rate;
         const VecType q_inv = 1.0 / q;
@@ -247,21 +249,23 @@ struct Coeff2p {
 
     // This does NOT null with the official coefficients given for
     // 48kHz sample rate, but is extremely close
-    void set_k_hipass(const typename VecType::elem_t sample_rate) {
+    void sg_vectorcall(set_k_hipass)(const typename VecType::elem_t sample_rate)
+    {
         set_hpf(sample_rate, k_hipass_hz_, k_hipass_q_);
         // Scale the output to get closer to official filters
         param_.c.set(k_hipass_scale_);
     }
 
     // This nulls with the official coefficients given for 48kHz sample rate
-    void set_k_shelf(const typename VecType::elem_t sample_rate) {
+    void sg_vectorcall(set_k_shelf)(const typename VecType::elem_t sample_rate)
+    {
         set_hi_shelf(sample_rate, k_shelf_db_, k_shelf_hz_, k_shelf_q_);
     }
 
-    void set_hi_shelf(const typename VecType::elem_t sample_rate,
-        const VecType& gain_db,
-        const VecType& corner_freq,
-        const VecType& q = typename VecType::elem_t {sqrt_0p5})
+    void sg_vectorcall(set_hi_shelf)(const typename VecType::elem_t sample_rate,
+        const VecType gain_db,
+        const VecType corner_freq,
+        const VecType q = typename VecType::elem_t {sqrt_0p5})
     {
         const VecType A = sqrt_db_to_v_<VecType>(gain_db);
         const VecType w0 = two_pi * corner_freq / sample_rate;
@@ -280,7 +284,8 @@ struct Coeff2p {
     }
 
     template <typename ArgType>
-    ArgType iterate(Taps2p<ArgType>& taps, const ArgType x) const {
+    ArgType sg_vectorcall(iterate)(Taps2p<ArgType>& taps, const ArgType x) const
+    {
         ArgType y = x * ArgType::from(param_.b0.get());
         y += taps.xnm1() * ArgType::from(param_.b1.get());
         y += taps.xnm2() * ArgType::from(param_.b2.get());
