@@ -48,9 +48,9 @@ struct Poly3 {
 
     template <typename VecType>
     VecType sg_vectorcall(eval)(const VecType x) const {
-        return x.mul_add(a_.tempate to<VecType>(), b_.tempate to<VecType>())
-            .mul_add(x, c_.tempate to<VecType>())
-            .mul_add(x, d_.tempate to<VecType>());
+        return x.mul_add(a_.template to<VecType>(), b_.template to<VecType>())
+            .mul_add(x, c_.template to<VecType>())
+            .mul_add(x, d_.template to<VecType>());
     }
 };
 
