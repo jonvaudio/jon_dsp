@@ -1,3 +1,5 @@
+// Copyright 2020-2022 Jon Ville
+
 #pragma once
 
 #include "../simd_granodi/simd_granodi.h"

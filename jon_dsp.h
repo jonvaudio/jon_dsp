@@ -1,3 +1,5 @@
+// Copyright 2020-2022 Jon Ville
+
 #pragma once
 #include "alpha_p3.h"
 #include "db_conv.h"

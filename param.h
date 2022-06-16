@@ -1,3 +1,5 @@
+// Copyright 2020-2022 Jon Ville
+
 #pragma once
 
 #include <algorithm>
@@ -18,7 +20,6 @@ using namespace simd_granodi;
 
 // Simplest possible wrapper for an array that only does bounds checking in a
 // debug build. Absolutely none of the functionality of std::array.
-// However, it does zero itself in its ctor.
 template <typename T, std::size_t SIZE>
 class RTArray {
     T data_[SIZE];
