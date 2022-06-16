@@ -115,8 +115,11 @@ public:
             (smooth_time_ms_ * elem_t(0.001) * elem_t(sample_rate));
     }
 
-    void sg_vectorcall(calc_next_current_delta_)(VecType next_current,
-        VecType next_delta) const
+    // This is a weird function that was originally called from more than one
+    // place, but needs to be cleaned up / moved / integrated into where it is
+    // called from
+    void sg_vectorcall(calc_next_current_delta_)(VecType& next_current,
+        VecType& next_delta) const
     {
         #ifdef JON_DSP_VALIDATE_PARAMS
         assert(valid_current_);
