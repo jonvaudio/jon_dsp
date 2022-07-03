@@ -74,7 +74,7 @@ struct DryWetMixer_Instant {
     template <typename VecType>
     VecType iterate(const VecType dry, const VecType wet) {
         reset();
-        const ArgType wet_lin = param_.wet_lin.get()
+        const VecType wet_lin = param_.wet_lin.get()
             .template to<VecType>();
         return dry_wet_mix(dry, wet, wet_lin);
     }

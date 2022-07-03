@@ -110,36 +110,36 @@ struct EasyRect {
         return EasyRect(x_, y_+h_-units, w_, units);
     }
 
-    constexpr void split_horiz(const NumType units, EasyRect& left,
+    void split_horiz(const NumType units, EasyRect& left,
         EasyRect& right) const
     {
         EasyRect safe_copy = *this; // In case user passes a reference to *this
         left = safe_copy.take_left(units); right = safe_copy.dec_left(units);
     }
-    constexpr void split_from_left(const NumType units, EasyRect& left,
+    void split_from_left(const NumType units, EasyRect& left,
         EasyRect& right) const
     {
         return split_horiz(units, left, right);
     }
-    constexpr void split_from_right(const NumType units, EasyRect& left,
+    void split_from_right(const NumType units, EasyRect& left,
         EasyRect& right) const
     {
         EasyRect safe_copy = *this;
         left = safe_copy.dec_right(units); right = safe_copy.take_right(units);
     }
 
-    constexpr void split_vert(const NumType units, EasyRect& top,
+    void split_vert(const NumType units, EasyRect& top,
         EasyRect& bottom) const
     {
         EasyRect safe_copy = *this;
         top = safe_copy.take_top(units); bottom = safe_copy.dec_top(units);
     }
-    constexpr void split_from_top(const NumType units, EasyRect& top,
+    void split_from_top(const NumType units, EasyRect& top,
         EasyRect& bottom) const
     {
         return split_vert(units, top, bottom);
     }
-    constexpr void split_from_bottom(const NumType units, EasyRect& top,
+    void split_from_bottom(const NumType units, EasyRect& top,
         EasyRect& bottom) const
     {
         EasyRect safe_copy = *this;
@@ -199,18 +199,18 @@ struct EasyRect {
 
     // Build grids
     constexpr EasyRect grid_container(const EasyRect& cell,
-        const NumType num_cols, const NumType num_rows)
+        const NumType num_cols, const NumType num_rows) const
     {
         return EasyRect(cell.x(), cell.y(), cell.x()*num_cols,
             cell.y().num_rows);
     }
     constexpr EasyRect row_container(const EasyRect& cell,
-        const NumType num_cols)
+        const NumType num_cols) const
     {
         return grid_container(cell, num_cols, 1);
     }
     constexpr EasyRect col_container(const EasyRect& cell,
-        const NumType num_rows)
+        const NumType num_rows) const
     {
         return grid_container(cell, 1, num_rows);
     }
@@ -219,14 +219,14 @@ struct EasyRect {
     // container rectangle with the same x and y coordinates as C
     constexpr EasyRect contain_pad(const NumType pad_left,
         const NumType pad_right, const NumType pad_top,
-        const NumType pad_bottom)
+        const NumType pad_bottom) const
     {
         return EasyRect(x_, y_, pad_left+pad_right, pad_top+pad_bottom);
     }
     // content_pad(): given a content rectangle C and some padding, move C so
     // that it can be padded. Its size will not change
     constexpr EasyRect content_pad(const NumType pad_left,
-        const NumType pad_top)
+        const NumType pad_top) const
     {
         return translate(pad_left, pad_top);
     }
