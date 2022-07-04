@@ -308,7 +308,7 @@ class TopLevelEffectManager {
 
     void sg_vectorcall(assert_ready_)() const { assert(initialised()); }
 public:
-    static constexpr int32_t BlockSizeAt4448_ = BlockSizeAt4448;
+    static constexpr int32_t BufSizeNeeded = max_size_needed(BlockSizeAt4448);
 
     bool sg_vectorcall(initialised)() const { return sample_rate_ != 0.0f; }
     bool sg_vectorcall(atomic_params_have_been_read)() const {
