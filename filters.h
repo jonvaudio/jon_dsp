@@ -132,7 +132,8 @@ struct Coeff1p {
         const VecType corner_freq,
         const VecType gain_db)
     {
-        const VecType theta_c = (two_pi * corner_freq) / sample_rate;
+        typedef typename VecType::elem_t elem_t;
+        const VecType theta_c = (elem_t{two_pi} * corner_freq) / sample_rate;
         const VecType mu = db_to_volt_std(gain_db);
         const VecType beta = 4 / (1.0 + mu);
         const VecType delta = beta * (theta_c * 0.5).std_tan();
@@ -171,6 +172,34 @@ struct Coeff1p {
         taps.set_ynm1(y);
         return ArgType::from(param_.c.get())*y +
             ArgType::from(param_.d.get())*x;
+    }
+
+    template <typename ArgType>
+    void process(Taps1p<ArgType>& taps, float *const left_io,
+        float *const right_io, int32_t n)
+    {
+        typedef typename ArgType::fast_register_t fast_t;
+        const fast_t b0  = param_.b0.get().to<fast_t>(),
+            b1 = param_.b1.get().to<fast_t>(),
+            a1 = param_.a1.get().to<fast_t>(),
+            c = param_.c.get().to<fast_t>(),
+            d = param_.d.get().to<fast_t>();
+        fast_t xnm1 = taps.xnm1().to<fast_t>(),
+            ynm1 = taps.ynm1().to<fast_t>(),
+            y, output;
+        for (int32_t i = 0; i < n; ++i) {
+            fast_t x = fast_t::set_duo(right_io[i], left_io[i]);
+            y = x * b0;
+            y += xnm1 * b1;
+            y -= ynm1 * a1;
+            xnm1 = x;
+            ynm1 = y;
+            output = c*y + d*x;
+            left_io[i] = output.get<0>();
+            right_io[i] = output.get<1>();
+        }
+        taps.set_xnm1(xnm1.to<ArgType>());
+        taps.set_ynm1(ynm1.to<ArgType>());
     }
 };
 

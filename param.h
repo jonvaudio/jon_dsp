@@ -40,6 +40,9 @@ public:
         } else assert(false); // "Initialization list is the wrong size"
     }
 
+    const T* data() const { return data_; }
+    T* data() { return data_; }
+
     void sg_vectorcall(set_all)(const T x) {
         for (std::size_t i = 0; i < SIZE; ++i) data_[i] = x;
     }
@@ -62,7 +65,7 @@ class ParamValidated {
     bool valid_;
     #endif
 public:
-    sg_vectorcall(ParamValidated)() { init_(); }
+    ParamValidated() { init_(); }
 
     void sg_vectorcall(init_)() {
         #ifdef JON_DSP_VALIDATE_PARAMS
@@ -94,7 +97,7 @@ class SmoothParamValidated {
     bool valid_current_, valid_target_, can_advance_;
     #endif
 public:
-    sg_vectorcall(SmoothParamValidated)() { init_(); }
+    SmoothParamValidated() { init_(); }
     void sg_vectorcall(init_)() {
         #ifdef JON_DSP_VALIDATE_PARAMS
         valid_current_ = false; valid_target_ = false; can_advance_ = false;
@@ -173,7 +176,7 @@ public:
         delta_ = 0;
     }
 
-    void sg_vectorcall(unlock_advance_)() {
+    void sg_vectorcall(unlock_advance)() {
         #ifdef JON_DSP_VALIDATE_PARAMS
         can_advance_ = true;
         #endif
@@ -224,7 +227,7 @@ class SmoothParamGroupManager {
     };
     struct UnlockAdvance_ {
         static void call_method(SmoothParamValidated<VecType>& p) {
-            p.unlock_advance_();
+            p.unlock_advance();
         }
     };
 public:
@@ -305,6 +308,8 @@ class TopLevelEffectManager {
 
     void sg_vectorcall(assert_ready_)() const { assert(initialised()); }
 public:
+    static constexpr int32_t BlockSizeAt4448_ = BlockSizeAt4448;
+
     bool sg_vectorcall(initialised)() const { return sample_rate_ != 0.0f; }
     bool sg_vectorcall(atomic_params_have_been_read)() const {
         assert_ready_();

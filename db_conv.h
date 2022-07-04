@@ -37,14 +37,16 @@ inline VecType sg_vectorcall(db_to_volt_std)(const VecType x) {
 
 template <typename VecType>
 inline VecType sg_vectorcall(volt_to_db_cm)(const VecType x,
-    const double min_db = VOLT_TO_DB_SMALLEST_DB)
+    const typename VecType::elem_t min_db = VOLT_TO_DB_SMALLEST_DB)
 {
-    return VecType::max(v2db_loge_scale_post * log_cm(x.abs()), min_db);
+    typedef typename VecType::elem_t elem_t;
+    return VecType::max(elem_t{v2db_loge_scale_post} * log_cm(x.abs()), min_db);
 }
 
 template <typename VecType>
 inline VecType sg_vectorcall(db_to_volt_cm)(const VecType x) {
-    return exp_cm(x * db2v_expe_scale_pre);
+    typedef typename VecType::elem_t elem_t;
+    return exp_cm(x * elem_t{db2v_expe_scale_pre});
 }
 
 //

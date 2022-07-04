@@ -10,8 +10,8 @@ template <typename CoeffType>
 struct Poly3 {
     CoeffType a_, b_, c_, d_;
 
-    sg_vectorcall(Poly3)() : a_ {0.0}, b_ {0.0}, c_ {1.0}, d_ {0.0} {}
-    sg_vectorcall(Poly3)(const CoeffType a, const CoeffType b,
+    Poly3() : a_ {0.0}, b_ {0.0}, c_ {1.0}, d_ {0.0} {}
+    Poly3(const CoeffType a, const CoeffType b,
         const CoeffType c, const CoeffType d)
         : a_ {a}, b_ {b}, c_ {c}, d_ {d} {}
 
@@ -58,8 +58,8 @@ template <typename CoeffType>
 struct Poly2 {
     CoeffType a_, b_, c_;
 
-    sg_vectorcall(Poly2)() : a_ {0.0}, b_ {1.0}, c_ {0.0} {}
-    sg_vectorcall(Poly2)(const CoeffType a, const CoeffType b,
+    Poly2() : a_ {0.0}, b_ {1.0}, c_ {0.0} {}
+    Poly2(const CoeffType a, const CoeffType b,
         const CoeffType c) : a_ {a}, b_ {b}, c_ {c} {}
 
     // Calc coefficients for quadratic that starts at (x1, y1) with gradient g1
