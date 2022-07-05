@@ -174,7 +174,32 @@ struct Coeff1p {
             ArgType::from(param_.d.get())*x;
     }
 
-    template <typename ArgType>
+    template <typename BufType, typename TapsType>
+    void process(Taps1p<TapsType>& taps, BufType buf, const int32_t n) {
+        typedef typename BufType::vec_t vec_t;
+        const vec_t b0  = param_.b0.get().to<vec_t>(),
+            b1 = param_.b1.get().to<vec_t>(),
+            a1 = param_.a1.get().to<vec_t>(),
+            c = param_.c.get().to<vec_t>(),
+            d = param_.d.get().to<vec_t>();
+        vec_t xnm1 = taps.xnm1().to<vec_t>(),
+            ynm1 = taps.ynm1().to<vec_t>(),
+            y, output;
+        for (int32_t i = 0; i < n; ++i) {
+            vec_t x = buf.get(i);
+            y = x * b0;
+            y += xnm1 * b1;
+            y -= ynm1 * a1;
+            xnm1 = x;
+            ynm1 = y;
+            output = c*y + d*x;
+            buf.set(i, output);
+        }
+        taps.set_xnm1(xnm1.to<TapsType>());
+        taps.set_ynm1(ynm1.to<TapsType>());
+    }
+
+    /*template <typename ArgType>
     void process(Taps1p<ArgType>& taps, float *const left_io,
         float *const right_io, int32_t n)
     {
@@ -200,7 +225,7 @@ struct Coeff1p {
         }
         taps.set_xnm1(xnm1.to<ArgType>());
         taps.set_ynm1(ynm1.to<ArgType>());
-    }
+    }*/
 };
 
 template <typename VecType>
