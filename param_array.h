@@ -194,7 +194,7 @@ struct DryWetMixBuf {
 };
 
 // Untested
-/*template <typename VecType>
+template <typename VecType>
 struct SmoothParamBuf {
     struct ParamGroup : public ParamGroupManager<ParamGroup, VecType> {
         ParamValidated<VecType> current, target;
@@ -211,23 +211,22 @@ struct SmoothParamBuf {
             .debug_valid_eq(true);
     }
 
-    void process_linear(VecType *const buf, const int32_t n) {
+    template <typename BufType>
+    void process_linear(BufType buf, const int32_t n) {
         assert(!on_target());
-        typedef typename VecType::elem_t elem_t;
-        typedef typename VecType::fast_register_t fast_t;
-        const fast_t current = param_.current.get().to<fast_t>(),
-            delta = (param_.target.get().to<fast_t>() - current),
-            scale = elem_t{1} / static_cast<elem_t>(n);
+        typedef typename BufType::elem_t elem_t;
+        typedef typename BufType::vec_t vec_t;
+        const vec_t current = param_.current.get().to<vec_t>(),
+            scale = (param_.target.get().to<vec_t>() - current) / static_cast<elem_t>(n);
         for (int32_t i = 0; i < n-1; ++i) {
             // i+1 means we start moving on first sample
-            buf[i] = (current + ((static_cast<elem_t>(i+1) * delta) * scale))
-                .to<VecType>();
+            buf.set(i, (current + (static_cast<elem_t>(i+1) * scale)));
         }
         // Guarantee on target by final sample in buffer
-        buf[n-1] = param_.target.get();
+        buf.set(n-1, param_.target.get().to<vec_t>());
         // Set current = target
         reset();
     }
-};*/
+};
 
 } // namespace jon_dsp

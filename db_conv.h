@@ -23,7 +23,7 @@ inline VecType sg_vectorcall(volt_to_db_std)(const VecType x,
     // std::log() of a negative number gives NaN
     // std::log(0.0) gives -inf
     // negative x as a voltage is a valid db, so we use abs(x)
-    return VecType::max_fast(v2db_loge_scale_post * x.abs().std_log(), min_db);
+    return VecType::max(typename VecType::elem_t{v2db_loge_scale_post} * x.abs().std_log(), min_db);
 }
 
 template <typename VecType>
