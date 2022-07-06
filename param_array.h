@@ -161,7 +161,7 @@ struct DryWetMixBuf {
     {
         reset();
         typedef typename ArgType::elem_t elem_t;
-        const ArgType wet_lin = param_.wet_lin.get().to<ArgType>();
+        const ArgType wet_lin = param_.wet_lin.get().template to<ArgType>();
         for (int32_t i = 0; i < n; ++i) {
             wet[i] *= wet_lin;
             wet[i] += dry[i] * (elem_t{1} - wet_lin);
@@ -175,8 +175,8 @@ struct DryWetMixBuf {
         assert(!on_target());
         typedef typename DryBufType::elem_t elem_t;
         typedef typename DryBufType::vec_t vec_t;
-        const vec_t prev_wet = param_.wet_lin_prev.get().to<vec_t>(),
-            scale = (param_.wet_lin.get().to<vec_t>() - prev_wet) / static_cast<elem_t>(n);
+        const vec_t prev_wet = param_.wet_lin_prev.get().template to<vec_t>(),
+            scale = (param_.wet_lin.get().template to<vec_t>() - prev_wet) / static_cast<elem_t>(n);
         for (int32_t i = 0; i < n-1; ++i) {
             // i+1 means we start moving on first sample
             const vec_t wet_lin = (prev_wet + (static_cast<elem_t>(i+1) * scale));
@@ -185,7 +185,7 @@ struct DryWetMixBuf {
             dry_buf.set(i, result);
         }
         // Set final sample to target
-        const vec_t wet_lin = param_.wet_lin.get().to<vec_t>();
+        const vec_t wet_lin = param_.wet_lin.get().template to<vec_t>();
         vec_t result = wet_lin * wet_buf.get(n-1);
         result += (elem_t{1} - wet_lin) * dry_buf.get(n-1);
         dry_buf.set(n-1, result);
@@ -216,14 +216,14 @@ struct SmoothParamBuf {
         assert(!on_target());
         typedef typename BufType::elem_t elem_t;
         typedef typename BufType::vec_t vec_t;
-        const vec_t current = param_.current.get().to<vec_t>(),
-            scale = (param_.target.get().to<vec_t>() - current) / static_cast<elem_t>(n);
+        const vec_t current = param_.current.get().template to<vec_t>(),
+            scale = (param_.target.get().template to<vec_t>() - current) / static_cast<elem_t>(n);
         for (int32_t i = 0; i < n-1; ++i) {
             // i+1 means we start moving on first sample
             buf.set(i, (current + (static_cast<elem_t>(i+1) * scale)));
         }
         // Guarantee on target by final sample in buffer
-        buf.set(n-1, param_.target.get().to<vec_t>());
+        buf.set(n-1, param_.target.get().template to<vec_t>());
         // Set current = target
         reset();
     }
