@@ -20,7 +20,7 @@ struct BufferWrapperIOMono {
     VecType get(const std::size_t i) const {
         return VecType{io_[i]};
     }
-    void set(const std::size_t i, const VecType x) {
+    void set(const std::size_t i, const VecType x) const {
         io_[i] = x.template get<0>();
     }
 };
@@ -38,7 +38,7 @@ struct BufferWrapperIOStereo {
     VecType get(const std::size_t i) const {
         return VecType::set_duo(right_io_[i], left_io_[i]);
     }
-    void set(const std::size_t i, const VecType x) {
+    void set(const std::size_t i, const VecType x) const {
         left_io_[i] = x.template get<0>();
         right_io_[i] = x.template get<1>();
     }
@@ -53,7 +53,7 @@ struct BufferWrapperVec {
     BufferWrapperVec(VecType *const data) : data_{data} {}
 
     VecType get(const std::size_t i) const { return data_[i]; }
-    void set(const std::size_t i, const VecType x) { data_[i] = x; }
+    void set(const std::size_t i, const VecType x) const { data_[i] = x; }
 };
 
 template <typename VecType, typename StoreType>
