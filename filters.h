@@ -184,9 +184,9 @@ struct Coeff1p {
             d = param_.d.get().template to<vec_t>();
         vec_t xnm1 = taps.xnm1().template to<vec_t>(),
             ynm1 = taps.ynm1().template to<vec_t>(),
-            y, output;
+            x, y, output;
         for (int32_t i = 0; i < n; ++i) {
-            vec_t x = buf.get(i);
+            x = buf.get(i);
             y = x * b0;
             y += xnm1 * b1;
             y -= ynm1 * a1;
@@ -353,6 +353,41 @@ struct Coeff2p {
         taps.set_ynm1(y);
         return ArgType::from(param_.c.get())*y +
             ArgType::from(param_.d.get())*x;
+    }
+
+    template <typename BufType, typename TapsType>
+    void process(Taps2p<TapsType>& taps, BufType buf, const int32_t n) {
+        typedef typename BufType::vec_t vec_t;
+        const vec_t b0 = param_.b0.get().template to<vec_t>(),
+            b1 = param_.b1.get().template to<vec_t>(),
+            b2 = param_.b2.get().template to<vec_t>(),
+            a1 = param_.a1.get().template to<vec_t>(),
+            a2 = param_.a2.get().template to<vec_t>(),
+            c = param_.c.get().template to<vec_t>(),
+            d = param_.d.get().template to<vec_t>();
+        vec_t xnm1 = taps.xnm1().template to<vec_t>(),
+            xnm2 = taps.xnm2().template to<vec_t>(),
+            ynm1 = taps.ynm1().template to<vec_t>(),
+            ynm2 = taps.ynm2().template to<vec_t>(),
+            x, y;
+        for (int32_t i = 0; i < n; ++i) {
+            x = buf.get(i);
+            y = x * b0;
+            y += xnm1 * b1;
+            y += xnm2 * b2;
+            y -= ynm1 * a1;
+            y -= ynm2 * a2;
+            xnm2 = xnm1;
+            xnm1 = x;
+            ynm2 = ynm1;
+            ynm1 = y;
+            y = c*y + d*x;
+            buf.set(i, y);
+        }
+        taps.set_xnm1(xnm1.template to<TapsType>());
+        taps.set_xnm2(xnm2.template to<TapsType>());
+        taps.set_ynm1(ynm1.template to<TapsType>());
+        taps.set_ynm2(ynm2.template to<TapsType>());
     }
 };
 

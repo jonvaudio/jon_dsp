@@ -15,6 +15,7 @@ struct BufferWrapperIOMono {
     
     elem_t *const io_;
 
+    BufferWrapperIOMono() : io_{nullptr} {}
     BufferWrapperIOMono(elem_t *const io) : io_{io} {}
 
     VecType get(const std::size_t i) const {
@@ -32,13 +33,23 @@ struct BufferWrapperIOStereo {
 
     elem_t *const left_io_, *right_io_;
 
+    BufferWrapperIOStereo() : left_io_{nullptr}, right_io_{nullptr} {}
     BufferWrapperIOStereo(elem_t *const left_io, elem_t *const right_io) :
         left_io_{left_io}, right_io_{right_io} {}
 
-    VecType get(const std::size_t i) const {
+    VecType sg_vectorcall(get)(const std::size_t i) const {
         return VecType::set_duo(right_io_[i], left_io_[i]);
     }
-    void set(const std::size_t i, const VecType x) const {
+    template <typename GetType>
+    GetType sg_vectorcall(get_type)(std::size_t i) const {
+        return GetType::set_duo(right_io_[i], left_io_[i]);
+    }
+    void sg_vectorcall(set)(const std::size_t i, const VecType x) const {
+        left_io_[i] = x.template get<0>();
+        right_io_[i] = x.template get<1>();
+    }
+    template <typename SetType>
+    void sg_vectorcall(set_type)(const std::size_t i, const SetType x) const {
         left_io_[i] = x.template get<0>();
         right_io_[i] = x.template get<1>();
     }
@@ -50,6 +61,7 @@ struct BufferWrapperVec {
     typedef typename VecType::elem_t elem_t;
     typedef VecType vec_t;
 
+    BufferWrapperVec() : data_{nullptr} {}
     BufferWrapperVec(VecType *const data) : data_{data} {}
 
     VecType get(const std::size_t i) const { return data_[i]; }
@@ -170,7 +182,7 @@ struct DryWetMixBuf {
 
     // wet is untouched, result goes in dry
     template <typename DryBufType, typename WetBufType>
-    void process_fade_linear(DryBufType dry_buf, const WetBufType wet_buf, const int32_t n)
+    void process_fade_linear(DryBufType dry_buf, const WetBufType wet_buf, const int32_t n, bool reset_after_fade=true)
     {
         assert(!on_target());
         typedef typename DryBufType::elem_t elem_t;
@@ -180,16 +192,16 @@ struct DryWetMixBuf {
         for (int32_t i = 0; i < n-1; ++i) {
             // i+1 means we start moving on first sample
             const vec_t wet_lin = (prev_wet + (static_cast<elem_t>(i+1) * scale));
-            vec_t result = wet_lin * wet_buf.get(i);
+            vec_t result = wet_lin * wet_buf.get(i).template to<vec_t>();
             result += (elem_t{1} - wet_lin) * dry_buf.get(i);
             dry_buf.set(i, result);
         }
         // Set final sample to target
         const vec_t wet_lin = param_.wet_lin.get().template to<vec_t>();
-        vec_t result = wet_lin * wet_buf.get(n-1);
+        vec_t result = wet_lin * wet_buf.get(n-1).template to<vec_t>();
         result += (elem_t{1} - wet_lin) * dry_buf.get(n-1);
         dry_buf.set(n-1, result);
-        reset();
+        if (reset_after_fade) reset();
     }
 };
 
@@ -212,7 +224,7 @@ struct SmoothParamBuf {
     }
 
     template <typename BufType>
-    void process_linear(BufType buf, const int32_t n) {
+    void process_linear(BufType buf, const int32_t n, bool reset_after_fade=true) {
         assert(!on_target());
         typedef typename BufType::elem_t elem_t;
         typedef typename BufType::vec_t vec_t;
@@ -225,7 +237,7 @@ struct SmoothParamBuf {
         // Guarantee on target by final sample in buffer
         buf.set(n-1, param_.target.get().template to<vec_t>());
         // Set current = target
-        reset();
+        if (reset_after_fade) reset();
     }
 };
 
