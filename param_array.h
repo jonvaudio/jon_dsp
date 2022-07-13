@@ -166,8 +166,7 @@ struct DryWetMixBuf {
             .debug_valid_eq(true);
     }
 
-    // Put the result in the wet array, the dry array is untouched
-    template <typename ArgType>
+    /*template <typename ArgType>
     void process_instant(const ArgType *const dry, ArgType *const wet,
         const int32_t n) const
     {
@@ -178,9 +177,24 @@ struct DryWetMixBuf {
             wet[i] *= wet_lin;
             wet[i] += dry[i] * (elem_t{1} - wet_lin);
         }
+    }*/
+
+    // result goes in dry, wet is untouched
+    template <typename DryBufType, typename WetBufType>
+    void process_instant(DryBufType dry_buf, const WetBufType wet_buf, const int32_t n)
+    {
+        assert(on_target());
+        typedef typename DryBufType::elem_t elem_t;
+        typedef typename DryBufType::vec_t vec_t;
+        const vec_t wet_lin = param_.wet_lin.get().template to<vec_t>();
+        for (int32_t i = 0; i < n; ++i) {
+            vec_t result = wet_lin * wet_buf.get(i).template to<vec_t>();
+            result += (elem_t{1} - wet_lin) * dry_buf.get(i);
+            dry_buf.set(i, result);
+        }
     }
 
-    // wet is untouched, result goes in dry
+    // result goes in dry, wet is untouched
     template <typename DryBufType, typename WetBufType>
     void process_fade_linear(DryBufType dry_buf, const WetBufType wet_buf, const int32_t n, bool reset_after_fade=true)
     {

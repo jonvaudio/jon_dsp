@@ -337,9 +337,12 @@ public:
         effect().init_();
     }
 
-    void sg_vectorcall(reset)() {
+    void reset() {
         assert_ready_();
         ScopedDenormalDisable sdd;
+        // In case user calls init() then reset(), before processing audio,
+        // meaning smooth params have no valid target and fail an assert()
+        effect().read_atomic_params_();
         effect().reset_();
     }
 
