@@ -149,7 +149,8 @@ struct Coeff1p {
         const VecType corner_freq,
         const VecType gain_db)
     {
-        const VecType theta_c = (two_pi * corner_freq) / sample_rate;
+        typedef typename VecType::elem_t elem_t;
+        const VecType theta_c = (elem_t{two_pi} * corner_freq) / sample_rate;
         const VecType mu = db_to_volt_std(gain_db);
         const VecType beta = (1.0 + mu) * 0.25;
         const VecType delta = beta * (theta_c * 0.5).std_tan();
@@ -248,7 +249,8 @@ struct Coeff2p {
         const VecType corner_freq,
         const VecType q = typename VecType::elem_t {sqrt_0p5})
     {
-        const VecType w0 = two_pi * corner_freq / sample_rate;
+        typedef typename VecType::elem_t elem_t;
+        const VecType w0 = elem_t{two_pi} * corner_freq / sample_rate;
         const VecType sinw0 = w0.std_sin();
         const VecType cosw0 = w0.std_cos();
         const VecType alpha = sinw0 / (2.0 * q);
@@ -288,8 +290,9 @@ struct Coeff2p {
         const VecType corner_freq,
         const VecType q = typename VecType::elem_t {sqrt_0p5})
     {
-        const VecType theta = two_pi * corner_freq / sample_rate;
-        const VecType q_inv = 1.0 / q;
+        typedef typename VecType::elem_t elem_t;
+        const VecType theta = elem_t{two_pi} * corner_freq / sample_rate;
+        const VecType q_inv = elem_t{1} / q;
         const VecType d2sintheta = q_inv * 0.5 * theta.std_sin();
         const VecType beta = 0.5 * ((1.0 - d2sintheta) / (1.0 + d2sintheta));
         const VecType gamma = (0.5 + beta) * theta.std_cos();
