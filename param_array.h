@@ -100,9 +100,64 @@ struct EnabledSwitch {
     bool should_reset_dry() const {
         return param_.current.get() && !param_.target.get();
     }
+    bool any_wet_signal() const {
+        // current = false, target = false -> NO
+        // current = false, target = true -> YES
+        // current = true, target = false -> YES
+        // current = true, target = true -> YES
+        return param_.current.get() || param_.target.get();
+    }
+    bool any_dry_signal() const {
+        // current = false, target = false -> YES
+        // current = false, target = true -> YES
+        // current = true, target = false -> YES
+        // current = true, target = true -> NO
+        return !(param_.current.get() && param_.target.get());
+    }
+
+    bool on_target() const {
+        return param_.target.get() == param_.current.get();
+    }
 
     bool enabled() const {
         return param_.target.get();
+    }
+};
+
+// Stateless, and for one-time use processing a block
+// Not to be used as a member
+template <typename VecType>
+struct LinearFade {
+    const VecType start_, scale_;
+    LinearFade() = delete;
+    LinearFade(const VecType start, const VecType end, const int32_t n) :
+        start_{start}, 
+        scale_{(end-start) / static_cast<typename VecType::elem_t>(n)} {}
+    LinearFade(const EnabledSwitch& es) {
+        static_assert(VecType::elem_count == 1);
+        assert(!es.on_target());
+        start_ = es.enabled() ? 0.0 : 1.0;
+        scale_ = 1.0 / static_cast<typename VecType::elem_t>(n);
+        if (!es.enabled()) scale_ = -scale_;
+    }
+
+    const VecType start() const { return start_; }
+    const VecType scale() const { return scale_; }
+
+    static VecType sg_vectorcall(calculate_i)(const VecType start,
+        const VecType scale, const int32_t i)
+    {
+        // Use i+1 so that we start moving on the first sample, and hit the
+        // target (although with a small amount of fp error) on the final sample
+        return start + (static_cast<typename VecType::elem_t>(i+1) * scale);
+    }
+
+    template <typename BufType>
+    void process(BufType buf, const int32_t n) {
+        const VecType start = start_, scale = scale_;
+        for (int32_t i = 0; i < n; ++i) {
+            buf.set(i, calculate_i(start, scale, i));
+        }
     }
 };
 

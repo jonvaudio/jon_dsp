@@ -43,11 +43,11 @@ public:
     const T* data() const { return data_; }
     T* data() { return data_; }
 
-    void sg_vectorcall(set_all)(const T x) {
+    void set_all(const T& x) {
         for (std::size_t i = 0; i < SIZE; ++i) data_[i] = x;
     }
 
-    T sg_vectorcall(operator[])(const std::size_t i) const {
+    const T& operator[](const std::size_t i) const {
         assert_i_(i); return data_[i];
     }
 
