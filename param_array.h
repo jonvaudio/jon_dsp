@@ -66,6 +66,11 @@ struct BufferWrapperVec {
 
     VecType get(const std::size_t i) const { return data_[i]; }
     void set(const std::size_t i, const VecType x) const { data_[i] = x; }
+
+    template <typename Other>
+    void copy_from(const Other other, const int32_t n) {
+        for (int32_t i = 0; i < n; ++i) data_[i] = other.get(i);
+    }
 };
 
 template <typename VecType, typename StoreType>
@@ -119,8 +124,31 @@ struct EnabledSwitch {
         return param_.target.get() == param_.current.get();
     }
 
-    bool enabled() const {
+    bool target() const {
         return param_.target.get();
+    }
+
+    // Don't call this, name is confusing
+    bool enabled() const {
+        return target();
+    }
+};
+
+template <typename VecType>
+struct TargetParam {
+    struct ParamGroup : public ParamGroupManager<ParamGroup, VecType> {
+        ParamValidated<VecType> current, target;
+    } param_;
+
+    void init() { param_.init(); }
+    void reset() { param_.current.set(param_.target.get()); }
+
+    void set_target(const VecType target) { param_.target.set(target); }
+    VecType target() const { return param_.target.get(); }
+    VecType current() const { return param_.current.get(); }
+    bool on_target() const {
+        return (param_.target.get() == param_.current.get())
+            .debug_valid_eq(true);
     }
 };
 
@@ -128,21 +156,31 @@ struct EnabledSwitch {
 // Not to be used as a member
 template <typename VecType>
 struct LinearFade {
-    const VecType start_, scale_;
+    VecType start_, scale_;
     LinearFade() = delete;
-    LinearFade(const VecType start, const VecType end, const int32_t n) :
-        start_{start}, 
-        scale_{(end-start) / static_cast<typename VecType::elem_t>(n)} {}
-    LinearFade(const EnabledSwitch& es) {
-        static_assert(VecType::elem_count == 1);
-        assert(!es.on_target());
-        start_ = es.enabled() ? 0.0 : 1.0;
-        scale_ = 1.0 / static_cast<typename VecType::elem_t>(n);
-        if (!es.enabled()) scale_ = -scale_;
+    LinearFade(const VecType start, const VecType end, const int32_t n) {
+        ctor_(start, end, n);
+    }
+    LinearFade(const EnabledSwitch& es, const int32_t n) {
+        const bool target = es.target(), on_target = es.on_target();
+        const VecType end = target ? 1 : 0;
+        const VecType start = on_target ? end : (target ? 0 : 1);
+        ctor_(start, end, n);
+    }
+    LinearFade(const TargetParam<VecType>& tp, const int32_t n) {
+        ctor_(tp.current(), tp.target(), n);
+    }
+
+    void ctor_(const VecType start, const VecType end, const int32_t n) {
+        start_ = start;
+        scale_ = (end-start) / static_cast<typename VecType::elem_t>(n);
     }
 
     const VecType start() const { return start_; }
     const VecType scale() const { return scale_; }
+    const bool on_target() const {
+        return (scale_ == 0).debug_valid_eq(true);
+    }
 
     static VecType sg_vectorcall(calculate_i)(const VecType start,
         const VecType scale, const int32_t i)
@@ -150,6 +188,10 @@ struct LinearFade {
         // Use i+1 so that we start moving on the first sample, and hit the
         // target (although with a small amount of fp error) on the final sample
         return start + (static_cast<typename VecType::elem_t>(i+1) * scale);
+    }
+
+    VecType sg_vectorcall(get)(const int32_t i) {
+        return calculate_i(start_, scale_, i);
     }
 
     template <typename BufType>
@@ -220,19 +262,6 @@ struct DryWetMixBuf {
         return (param_.wet_lin.get() == param_.wet_lin_prev.get())
             .debug_valid_eq(true);
     }
-
-    /*template <typename ArgType>
-    void process_instant(const ArgType *const dry, ArgType *const wet,
-        const int32_t n) const
-    {
-        reset();
-        typedef typename ArgType::elem_t elem_t;
-        const ArgType wet_lin = param_.wet_lin.get().template to<ArgType>();
-        for (int32_t i = 0; i < n; ++i) {
-            wet[i] *= wet_lin;
-            wet[i] += dry[i] * (elem_t{1} - wet_lin);
-        }
-    }*/
 
     // result goes in dry, wet is untouched
     template <typename DryBufType, typename WetBufType>
