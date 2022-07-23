@@ -105,19 +105,25 @@ struct EnabledSwitch {
     bool should_reset_dry() const {
         return param_.current.get() && !param_.target.get();
     }
+    bool target_has_any_wet_signal() const {
+        return param_.target.get();
+    }
     bool any_wet_signal() const {
         // current = false, target = false -> NO
         // current = false, target = true -> YES
         // current = true, target = false -> YES
         // current = true, target = true -> YES
-        return param_.current.get() || param_.target.get();
+        return param_.current.get() || target_has_any_wet_signal();
+    }
+    bool target_has_any_dry_signal() const {
+        return !param_.target.get();
     }
     bool any_dry_signal() const {
         // current = false, target = false -> YES
         // current = false, target = true -> YES
         // current = true, target = false -> YES
         // current = true, target = true -> NO
-        return !(param_.current.get() && param_.target.get());
+        return !param_.current.get() || target_has_any_dry_signal();
     }
 
     bool on_target() const {
@@ -126,11 +132,6 @@ struct EnabledSwitch {
 
     bool target() const {
         return param_.target.get();
-    }
-
-    // Don't call this, name is confusing
-    bool enabled() const {
-        return target();
     }
 };
 
@@ -147,8 +148,8 @@ struct TargetParam {
     VecType target() const { return param_.target.get(); }
     VecType current() const { return param_.current.get(); }
     bool on_target() const {
-        return (param_.target.get() == param_.current.get())
-            .debug_valid_eq(true);
+        static_assert(VecType::elem_count == 1, "");
+        return (param_.target.get().data() == param_.current.get().data());
     }
 };
 
@@ -203,6 +204,101 @@ struct LinearFade {
     }
 };
 
+template <typename VecType>
+inline VecType wet_to_lin(const VecType wet, const typename VecType::elem_t min_db) {
+    assert(((VecType {0.0} <= wet) && (wet <= VecType {1.0}))
+            .debug_valid_eq(true));
+    assert(min_db < 0.0);
+    return ((wet == 0.0) || (wet == 1.0))
+            .choose(wet, db_to_volt_std(min_db + (-min_db * wet)));
+}
+
+template <typename VecType>
+inline VecType wet_to_lin_pc(const VecType wet, const typename VecType::elem_t min_db) {
+    return wet_to_lin(wet * 0.01, min_db);
+}
+
+template <typename VecType>
+struct DryWetMix_Block {
+    TargetParam<VecType> state_;
+
+    void init() { state_.init(); }
+    void reset() { state_.reset(); }
+
+    static constexpr typename VecType::elem_t min_db_ = -30.0;
+
+    void set_wet(const VecType wet) {
+        state_.set_target(wet_to_lin(wet, min_db_));
+    }
+
+    void set_wet_pc(const VecType wet_pc) {
+        state_.set_target(wet_to_lin_pc(wet_pc, min_db_));
+    }
+
+    VecType current() const { return state_.current(); }
+    VecType target() const { return state_.target(); }
+
+    bool on_target() const { return state_.on_target(); }
+
+    bool target_has_any_dry_signal() const {
+        static_assert(VecType::elem_count == 1, "");
+        return state_.target().data() != 1.0;
+    }
+    bool any_dry_signal() const {
+        static_assert(VecType::elem_count == 1, "");
+        return state_.current().data() != 1.0 ||
+            target_has_any_dry_signal();
+    }
+    bool target_has_any_wet_signal() const {
+        static_assert(VecType::elem_count == 1, "");
+        return state_.target().data() != 0.0;
+    }
+    bool any_wet_signal() const {
+        static_assert(VecType::elem_count == 1, "");
+        return state_.current().data() != 0.0 ||
+            target_has_any_wet_signal();
+    }
+    bool should_reset_dry() const {
+        static_assert(VecType::elem_count == 1, "");
+        return state_.current().data() == 1.0 && state_.target().data() != 1.0;
+    }
+    bool should_reset_wet() const {
+        static_assert(VecType::elem_count == 1, "");
+        return state_.current().data() == 0.0 && state_.target().data() != 0.0;
+    }
+
+    // Puts result in the dry buffer
+    template <typename BufType>
+    void process(BufType dry_buf, BufType wet_buf, const int32_t n,
+        const bool reset_after_fade = true)
+    {
+        typedef typename BufType::vec_t vec_t;
+        if (on_target()) {
+            const typename VecType::elem_t wet_lin_x1 = state_.target().data();
+            if (wet_lin_x1 == 0.0) return;
+            else if (wet_lin_x1 == 1.0) dry_buf.copy_from(wet_buf, n);
+            else {
+                const vec_t wet_lin = vec_t{wet_lin_x1};
+                for (int32_t i = 0; i < n; ++i) {
+                    const vec_t wet = wet_buf.get(i).template to<vec_t>(),
+                        dry = dry_buf.get(i).template to<vec_t>();
+                    dry_buf.set(i, wet_lin*wet + (1.0-wet_lin)*dry);
+                }
+            }
+        } else {
+            LinearFade<VecType> fade{state_, n};
+            for (int32_t i = 0; i < n; ++i) {
+                const vec_t wet = wet_buf.get(i).template to<vec_t>(),
+                    dry = dry_buf.get(i).template to<vec_t>(),
+                    wet_lin = fade.get(i).template to<vec_t>();
+                dry_buf.set(i, wet_lin*wet + (1.0-wet_lin)*dry);
+            }
+            if (reset_after_fade) reset();
+        }
+    }
+};
+
+// Kept in for compat with old code - don't use
 template <typename VecType, int32_t MIN_DB>
 struct DryWetMixBuf {
     struct ParamGroup : public ParamGroupManager<ParamGroup, VecType> {
@@ -232,20 +328,14 @@ struct DryWetMixBuf {
 
     bool any_dry_signal() {
         static_assert(VecType::elem_count == 1, "");
-        return param_.wet_lin.get().data() != 1.0;
-    }
-    bool is_100pc_dry() {
-        static_assert(VecType::elem_count == 1, "");
-        return param_.wet_lin.get().data() == 0.0;
+        return param_.wet_lin.get().data() != 1.0 ||
+            param_.wet_lin_prev.get().data() != 1.0;
     }
 
     bool any_wet_signal() {
         static_assert(VecType::elem_count == 1, "");
-        return param_.wet_lin.get().data() != 0.0;
-    }
-    bool is_100pc_wet() {
-        static_assert(VecType::elem_count == 1, "");
-        return param_.wet_lin.get().data() == 1.0;
+        return param_.wet_lin.get().data() != 0.0 ||
+            param_.wet_lin_prev.get().data() != 0.0;
     }
 
     bool should_reset_wet() const {
@@ -259,8 +349,8 @@ struct DryWetMixBuf {
             param_.wet_lin.get().data() != 1.0;
     }
     bool on_target() const {
-        return (param_.wet_lin.get() == param_.wet_lin_prev.get())
-            .debug_valid_eq(true);
+        static_assert(VecType::elem_count == 1, "");
+        return param_.wet_lin.get().data() == param_.wet_lin_prev.get().data();
     }
 
     // result goes in dry, wet is untouched
