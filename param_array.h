@@ -184,7 +184,7 @@ struct LinearFade {
     }
     LinearFade(const EnabledSwitch& es, const int32_t n) {
         const bool target = es.target(), on_target = es.on_target();
-        const VecType end = target ? 1 : 0;
+        const VecType end = target ? 1.0 : 0.0;
         const VecType start = on_target ? end : (target ? 0 : 1);
         ctor_(start, end, n);
     }
