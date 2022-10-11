@@ -27,11 +27,31 @@ struct BufferWrapperIOMono {
 };
 
 template <typename VecType>
+struct BufferWrapperSCStereo {
+    typedef typename VecType::elem_t elem_t;
+    typedef VecType vec_t;
+
+    const elem_t *const left_sc_, *const right_sc_;
+
+    BufferWrapperSCStereo() : left_sc_{nullptr}, right_sc_{nullptr} {}
+    BufferWrapperSCStereo(const elem_t *const left_sc, elem_t const *const right_sc) :
+        left_sc_{left_sc}, right_sc_{right_sc} {}
+
+    VecType sg_vectorcall(get)(const std::size_t i) const {
+        return VecType::set_duo(right_sc_[i], left_sc_[i]);
+    }
+    template <typename GetType>
+    GetType sg_vectorcall(get_type)(std::size_t i) const {
+        return GetType::set_duo(right_sc_[i], left_sc_[i]);
+    }
+};
+
+template <typename VecType>
 struct BufferWrapperIOStereo {
     typedef typename VecType::elem_t elem_t;
     typedef VecType vec_t;
 
-    elem_t *const left_io_, *right_io_;
+    elem_t *const left_io_, *const right_io_;
 
     BufferWrapperIOStereo() : left_io_{nullptr}, right_io_{nullptr} {}
     BufferWrapperIOStereo(elem_t *const left_io, elem_t *const right_io) :
