@@ -60,7 +60,7 @@ public:
 
 template <typename VecType>
 class ParamValidated {
-    VecType current_;
+    VecType current_{};
     #ifdef JON_DSP_VALIDATE_PARAMS
     bool valid_;
     #endif
@@ -90,7 +90,7 @@ public:
 
 template<typename VecType, int32_t SMOOTH_TIME_MS = 1>
 class SmoothParamValidated {
-    VecType current_, delta_, target_;
+    VecType current_{}, delta_{}, target_{};
     static constexpr typename VecType::elem_t smooth_time_ms_ =
         typename VecType::elem_t {SMOOTH_TIME_MS};
     #ifdef JON_DSP_VALIDATE_PARAMS
@@ -367,6 +367,7 @@ public:
         // Actual processing
         ScopedDenormalDisable sdd;
         for (int32_t i = 0; i < block_size; i += timer_size_) {
+            // Todo: move read atomic params, and effect reset, before this loop
             effect().read_atomic_params_();
             if (should_reset_this_block_) {
                 effect().reset_();
@@ -375,6 +376,7 @@ public:
             const int32_t limit = std::min(i+timer_size_, block_size);
             effect().iterate_block_io_(left_io+i, right_io+i,
                 left_sc+i, right_sc+i, limit-i);
+            // Todo: move publish meter outside this loop
             effect().publish_meter_();
         }
     }
@@ -407,6 +409,9 @@ class AtomicParam {
     bool init_first_time_ {false};
     #endif
 public:
+    AtomicParam() = default;
+    AtomicParam(const FloatOrDouble default_value) : atomic_param_{default_value} {}
+
     void sg_vectorcall(store)() {
         flag_.store(true);
     }
