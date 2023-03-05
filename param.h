@@ -390,6 +390,98 @@ public:
     }
 };
 
+template <typename TopLevelEffectType, int32_t BlockSizeAt4448 = 256>
+class TopLevelEffectLite {
+    // float can represent any conventional sample rate exactly, and be casted
+    // to double without warning
+    float sample_rate_{0.0f};
+    int32_t timer_size_{0};
+    bool should_reset_this_block_{true};
+    TopLevelEffectType& effect() {
+        return *static_cast<TopLevelEffectType*>(this);
+    }
+
+    void sg_vectorcall(assert_ready_)() const { assert(initialised()); }
+public:
+    static constexpr int32_t BufSizeNeeded = max_size_needed(BlockSizeAt4448);
+
+    bool sg_vectorcall(initialised)() const { return sample_rate_ != 0.0f; }
+    bool sg_vectorcall(atomic_params_have_been_read)() const {
+        assert_ready_();
+        return !should_reset_this_block_;
+    }
+
+    float sg_vectorcall(sample_rate)() const {
+        assert_ready_(); return sample_rate_;
+    }
+
+    void sg_vectorcall(init)(const float sample_rate) {
+        assert(STANDARD_SAMPLE_RATES_MIN <= sample_rate &&
+            sample_rate <= STANDARD_SAMPLE_RATES_MAX);
+        // For non-debug builds, we also want to constrain the sample rate
+        // to avoid buffer overflows etc
+        const float safe_sample_rate =
+            std::min(std::max(STANDARD_SAMPLE_RATES_MIN, sample_rate),
+                STANDARD_SAMPLE_RATES_MAX);
+        sample_rate_ = safe_sample_rate;
+        timer_size_ = scale_size_by_sample_rate(
+            static_cast<int32_t>(safe_sample_rate), BlockSizeAt4448, 1);
+        should_reset_this_block_ = true;
+
+        ScopedDenormalDisable sdd;
+        effect().init_();
+    }
+
+    void reset() {
+        assert_ready_();
+        ScopedDenormalDisable sdd;
+        // In case user calls init() then reset(), before processing audio,
+        // meaning smooth params have no valid target and fail an assert()
+        effect().read_atomic_params_();
+        effect().reset_();
+    }
+
+    template <typename FloatType>
+    void process_sc(FloatType *const left_io,
+        FloatType *right_io,
+        const FloatType *left_sc,
+        const FloatType *right_sc,
+        const int32_t block_size)
+    {
+        // Input checks
+        assert_ready_();
+        assert(left_io != nullptr);
+        if (left_io == nullptr) return;
+        right_io = right_io != nullptr ? right_io : left_io;
+        left_sc = left_sc != nullptr ? left_sc : left_io;
+        // We don't pick left_sc here as
+        // left_sc == nullptr && right_sc == nullptr
+        // would force a mono sidechain
+        right_sc = right_sc != nullptr ? right_sc : right_io;
+
+        // Actual processing
+        ScopedDenormalDisable sdd;
+        effect().read_atomic_params_();
+        if (should_reset_this_block_) {
+            effect().reset_();
+            should_reset_this_block_ = false;
+        }
+        for (int32_t i = 0; i < block_size; i += timer_size_) {
+            const int32_t limit = std::min(i+timer_size_, block_size);
+            effect().process_(left_io+i, right_io+i,
+                left_sc+i, right_sc+i, limit-i);
+        }
+    }
+
+    template <typename FloatType>
+    void process(FloatType *const left_io,
+        FloatType *right_io,
+        const int32_t block_size)
+    {
+        process_sc<FloatType>(left_io, right_io, nullptr, nullptr, block_size);
+    }
+};
+
 //
 // (Juce's implementation of audio parameter listeners uses a writer lock,
 // which guarantees juce params will only be written to by one writer)
